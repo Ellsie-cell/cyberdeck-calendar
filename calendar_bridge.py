@@ -118,24 +118,57 @@ def delete_local_ops_event(event_id: str) -> bool:
         return True
     return False
 
+def _decrypt_aura_vault() -> Optional[Dict[str, Any]]:
+    """Directly decrypts Aura CRM vault using native cryptography without importing visualizers."""
+    import base64
+    from cryptography.fernet import Fernet
+    from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
+    from cryptography.hazmat.primitives import hashes
+
+    vault_path = get_aura_vault_path()
+    if not vault_path or not vault_path.exists():
+        return None
+
+    # Resolve salt and key files
+    salt_path = HANA_CONFIG_DIR / ".aura_vault.salt"
+    if not (salt_path.exists() and salt_path.resolve().exists()):
+        salt_path = LOCKBOX_VAULT / ".aura_vault.salt"
+
+    key_path = HANA_CONFIG_DIR / ".aura_vault.key"
+    if not (key_path.exists() and key_path.resolve().exists()):
+        key_path = LOCKBOX_VAULT / ".aura_vault.key"
+
+    if not salt_path.exists() or not key_path.exists():
+        return None
+
+    salt = salt_path.read_bytes()
+    machine_seed = key_path.read_bytes()
+    secret_input = machine_seed + b"cyberdeck-aura-default"
+
+    kdf = PBKDF2HMAC(
+        algorithm=hashes.SHA256(),
+        length=32,
+        salt=salt,
+        iterations=600000,
+    )
+    key = base64.urlsafe_b64encode(kdf.derive(secret_input))
+    fernet = Fernet(key)
+    ciphertext = vault_path.read_bytes()
+    decrypted = fernet.decrypt(ciphertext)
+    return json.loads(decrypted.decode("utf-8"))
+
 def fetch_aura_crm_events() -> List[Dict[str, Any]]:
     """
     Ingests CRM touchpoints, meetings, follow-up dates, and partner reviews
     from Aura CRM network vault in strictly READ-ONLY mode.
     """
     events = []
-    vault_path = get_aura_vault_path()
-    if not vault_path:
-        return events
-
     try:
-        # Dynamically import aura_vault module from aura-sync
-        if str(AURA_SYNC_DIR) not in sys.path:
-            sys.path.insert(0, str(AURA_SYNC_DIR))
-        import aura_vault
-        data = aura_vault.load_vault()
-        nodes = data.get("nodes", [])
+        data = _decrypt_aura_vault()
+        if not data:
+            return events
 
+        nodes = data.get("nodes", [])
         today = datetime.date.today()
 
         for node in nodes:
