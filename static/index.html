@@ -63,6 +63,50 @@
       overflow: hidden;
     }
 
+    /* Perimeter & Corner Window Resize Handles */
+    .resize-edge {
+      position: absolute;
+      z-index: 99999;
+    }
+    .edge-top {
+      top: 0; left: 16px; right: 16px; height: 6px;
+      cursor: ns-resize;
+    }
+    .edge-bottom {
+      bottom: 0; left: 16px; right: 24px; height: 6px;
+      cursor: ns-resize;
+    }
+    .edge-left {
+      left: 0; top: 16px; bottom: 16px; width: 6px;
+      cursor: ew-resize;
+    }
+    .edge-right {
+      right: 0; top: 16px; bottom: 24px; width: 6px;
+      cursor: ew-resize;
+    }
+
+    .resize-corner {
+      position: absolute;
+      width: 20px;
+      height: 20px;
+      z-index: 99999;
+    }
+    .corner-nw { top: 0; left: 0; cursor: nwse-resize; }
+    .corner-ne { top: 0; right: 0; cursor: nesw-resize; }
+    .corner-sw { bottom: 0; left: 0; cursor: nesw-resize; }
+    .corner-se {
+      bottom: 0; right: 0; cursor: nwse-resize;
+      display: flex; align-items: flex-end; justify-content: flex-end;
+      padding: 3px;
+    }
+    .resize-grip-lines {
+      width: 10px; height: 10px;
+      border-right: 2px solid var(--neon-purple);
+      border-bottom: 2px solid var(--neon-purple);
+      opacity: 0.7;
+      pointer-events: none;
+    }
+
     /* Cyber Corner Brackets */
     .hud-container::before {
       content: "";
@@ -567,6 +611,18 @@
 <body>
 
 <div class="hud-container">
+  <!-- Perimeter & Corner Window Resize Handles -->
+  <div class="resize-edge edge-top" data-edge="north"></div>
+  <div class="resize-edge edge-bottom" data-edge="south"></div>
+  <div class="resize-edge edge-left" data-edge="west"></div>
+  <div class="resize-edge edge-right" data-edge="east"></div>
+  <div class="resize-corner corner-nw" data-edge="north_west"></div>
+  <div class="resize-corner corner-ne" data-edge="north_east"></div>
+  <div class="resize-corner corner-sw" data-edge="south_west"></div>
+  <div class="resize-corner corner-se" data-edge="south_east">
+    <div class="resize-grip-lines"></div>
+  </div>
+
   <!-- Top Draggable Header Bar -->
   <div class="hud-header">
     <div class="header-left">
@@ -580,8 +636,9 @@
     <div class="header-right">
       <span class="badge-pill" onclick="openNewTaskModal()">[+ NEW TASK]</span>
       <span class="badge-pill" onclick="triggerProtonExport()">[EXPORT PROTON .ICS]</span>
-      <button class="window-btn" onclick="postToBackend('minimize')">[─]</button>
-      <button class="window-btn close" onclick="postToBackend('close')">[✕]</button>
+      <button class="window-btn" title="Minimize" onclick="postToBackend('minimize')">[─]</button>
+      <button class="window-btn" title="Maximize/Restore" onclick="postToBackend('toggle_maximize')">[□]</button>
+      <button class="window-btn close" title="Close" onclick="postToBackend('close')">[✕]</button>
     </div>
   </div>
 
@@ -698,8 +755,9 @@
 
   // IPC Bridge to Python GTK backend
   function postToBackend(action, payload = {}) {
+    const msg = JSON.stringify({ action, ...payload });
     if (window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.cyberdeckCalendar) {
-      window.webkit.messageHandlers.cyberdeckCalendar.postMessage({ action, ...payload });
+      window.webkit.messageHandlers.cyberdeckCalendar.postMessage(msg);
     } else {
       console.log("[IPC Dev Fallback]", action, payload);
     }
@@ -995,7 +1053,32 @@
     if (e.key === 'Escape') {
       closeDrawer();
       closeNewTaskModal();
+    } else if (e.key === 'F11') {
+      e.preventDefault();
+      postToBackend('toggle_maximize');
     }
+  });
+
+  // Native Window Dragging from Header
+  const hudHeader = document.querySelector('.hud-header');
+  if (hudHeader) {
+    hudHeader.addEventListener('mousedown', (e) => {
+      // Avoid drag when clicking buttons, badges, or input elements
+      if (!e.target.closest('.badge-pill') && !e.target.closest('.window-btn') && !e.target.closest('button')) {
+        e.preventDefault();
+        postToBackend('start_drag');
+      }
+    });
+  }
+
+  // Native Dynamic Window Resizing (Borders & Corner Grips)
+  document.querySelectorAll('.resize-edge, .resize-corner').forEach(el => {
+    el.addEventListener('mousedown', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      const edge = el.getAttribute('data-edge') || 'south_east';
+      postToBackend('start_resize', { edge });
+    });
   });
 
   // Initial load

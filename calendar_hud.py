@@ -157,6 +157,36 @@ class CalendarHUDWindow(Gtk.Window):
         self.hide()
         return True  # Hide instead of destroy to allow fast toggling
 
+    def start_drag(self):
+        """Native GTK window move drag initiated from header."""
+        device = Gdk.Display.get_default().get_default_seat().get_pointer()
+        _, x, y = device.get_position()
+        self.begin_move_drag(1, x, y, Gtk.get_current_event_time())
+
+    def start_resize(self, edge_name="south_east"):
+        """Native GTK window resize drag initiated from borders or corner grip."""
+        edge_map = {
+            "south_east": Gdk.WindowEdge.SOUTH_EAST,
+            "south": Gdk.WindowEdge.SOUTH,
+            "east": Gdk.WindowEdge.EAST,
+            "south_west": Gdk.WindowEdge.SOUTH_WEST,
+            "west": Gdk.WindowEdge.WEST,
+            "north": Gdk.WindowEdge.NORTH,
+            "north_east": Gdk.WindowEdge.NORTH_EAST,
+            "north_west": Gdk.WindowEdge.NORTH_WEST,
+        }
+        edge = edge_map.get(edge_name, Gdk.WindowEdge.SOUTH_EAST)
+        device = Gdk.Display.get_default().get_default_seat().get_pointer()
+        _, x, y = device.get_position()
+        self.begin_resize_drag(edge, 1, x, y, Gtk.get_current_event_time())
+
+    def toggle_maximize(self):
+        """Toggles between maximized and restored window state."""
+        if self.is_maximized():
+            self.unmaximize()
+        else:
+            self.maximize()
+
     def on_button_press(self, widget, event):
         # Allow dragging window when clicking top 44px
         if event.button == 1 and event.y <= 44:
@@ -167,7 +197,12 @@ class CalendarHUDWindow(Gtk.Window):
     def on_js_message(self, content_manager, js_result):
         """Dispatches incoming IPC messages from JavaScript WebKit."""
         try:
-            payload = json.loads(js_result.get_js_value().to_string())
+            js_val = js_result.get_js_value()
+            raw_str = js_val.to_string()
+            payload = json.loads(raw_str)
+            if isinstance(payload, str):
+                payload = json.loads(payload)
+
             action = payload.get("action")
 
             if action == "fetch_events":
@@ -211,6 +246,16 @@ class CalendarHUDWindow(Gtk.Window):
 
             elif action == "delete_ops_event":
                 calendar_bridge.delete_local_ops_event(payload.get("id"))
+
+            elif action == "start_drag":
+                self.start_drag()
+
+            elif action == "start_resize":
+                edge = payload.get("edge", "south_east")
+                self.start_resize(edge)
+
+            elif action == "toggle_maximize":
+                self.toggle_maximize()
 
             elif action == "minimize":
                 self.iconify()
