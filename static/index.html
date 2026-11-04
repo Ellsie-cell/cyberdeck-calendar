@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Cyberdeck // Calendar HUD</title>
+  <title>Cyberdeck // Calendar</title>
   <style>
     :root {
       --bg-dark: rgba(13, 15, 24, 0.92);
@@ -106,7 +106,8 @@
       background: rgba(18, 20, 32, 0.95);
       border-bottom: 1px solid var(--border-dim);
       cursor: grab;
-      -webkit-app-region: drag;
+      position: relative;
+      z-index: 50;
     }
     .hud-header:active {
       cursor: grabbing;
@@ -115,7 +116,7 @@
     .header-left {
       display: flex;
       align-items: center;
-      gap: 12px;
+      gap: 10px;
     }
 
     .brand-title {
@@ -130,7 +131,7 @@
 
     .badge-pill {
       font-size: 11px;
-      padding: 2px 8px;
+      padding: 3px 8px;
       border-radius: 4px;
       background: rgba(40, 44, 68, 0.7);
       border: 1px solid var(--border-dim);
@@ -139,7 +140,8 @@
       align-items: center;
       gap: 4px;
       transition: all 0.2s ease;
-      -webkit-app-region: no-drag;
+      position: relative;
+      z-index: 60;
     }
     .badge-pill:hover {
       background: var(--bg-hover);
@@ -173,7 +175,8 @@
       display: flex;
       align-items: center;
       gap: 8px;
-      -webkit-app-region: no-drag;
+      position: relative;
+      z-index: 60;
     }
 
     .window-btn {
@@ -181,6 +184,17 @@
       height: 24px;
       display: flex;
       align-items: center;
+      justify-content: center;
+      background: transparent;
+      border: 1px solid var(--border-dim);
+      border-radius: 4px;
+      color: var(--text-muted);
+      cursor: pointer;
+      font-size: 11px;
+      transition: all 0.15s;
+      position: relative;
+      z-index: 60;
+    }
       justify-content: center;
       background: transparent;
       border: 1px solid var(--border-dim);
@@ -592,9 +606,7 @@
   <!-- Top Draggable Header Bar -->
   <div class="hud-header">
     <div class="header-left">
-      <span class="brand-title">[◈] CYBERDECK // CALENDAR HUD</span>
-      <span id="vaultStatusBadge" class="badge-pill vault-online">[● VAULT ONLINE]</span>
-      <span id="privacyToggleBtn" class="badge-pill" onclick="togglePrivacyMode()">[🛡️ PRIVACY: GLANCE]</span>
+      <span class="brand-title">[◈] CYBERDECK // CALENDAR</span>
       <span id="crmFilterBtn" class="badge-pill active-crm" onclick="toggleStreamFilter('crm')">[◈ CRM]</span>
       <span id="tprmFilterBtn" class="badge-pill active-tprm" onclick="toggleStreamFilter('tprm')">[⏣ TPRM]</span>
       <span id="opsFilterBtn" class="badge-pill active-ops" onclick="toggleStreamFilter('ops')">[● OPS]</span>
@@ -730,34 +742,14 @@
   }
 
   // Load events from Python bridge or local fetch
+  // Load events from Python bridge
   function reloadData() {
-    postToBackend('fetch_events', { glance_mode: privacyMode === 'glance' });
+    postToBackend('fetch_events', { glance_mode: false });
   }
 
   // Called from Python when events arrive
   function onEventsLoaded(data) {
-    if (data.lockbox_online) {
-      document.getElementById('vaultStatusBadge').className = 'badge-pill vault-online';
-      document.getElementById('vaultStatusBadge').innerText = '[● VAULT ONLINE]';
-    } else {
-      document.getElementById('vaultStatusBadge').className = 'badge-pill vault-offline';
-      document.getElementById('vaultStatusBadge').innerText = '[○ VAULT OFFLINE]';
-    }
-
     allEvents = data.events || [];
-    render();
-  }
-
-  function togglePrivacyMode() {
-    privacyMode = (privacyMode === 'glance') ? 'revealed' : 'glance';
-    const btn = document.getElementById('privacyToggleBtn');
-    if (privacyMode === 'glance') {
-      btn.innerText = '[🛡️ PRIVACY: GLANCE]';
-      btn.style.borderColor = 'var(--border-dim)';
-    } else {
-      btn.innerText = '[◈ PRIVACY: REVEALED]';
-      btn.style.borderColor = 'var(--neon-cyan)';
-    }
     render();
   }
 
@@ -865,10 +857,9 @@
       const chip = document.createElement('div');
       chip.className = `event-chip ${ev.source}`;
       
-      // Dual-Layer Privacy display check
-      const labelText = (privacyMode === 'glance') ? (ev.glance_title || ev.badge) : (ev.full_title || ev.title);
+      const labelText = ev.full_title || ev.title || ev.glance_title || "Event";
       chip.innerText = labelText;
-      chip.title = (privacyMode === 'glance') ? "Click to view detailed dossier" : labelText;
+      chip.title = labelText;
 
       chip.onclick = (e) => {
         e.stopPropagation();
@@ -904,7 +895,7 @@
     activeEvents.forEach(ev => {
       const card = document.createElement('div');
       card.className = 'agenda-card';
-      const labelText = (privacyMode === 'glance') ? (ev.glance_title || ev.badge) : (ev.full_title || ev.title);
+      const labelText = ev.full_title || ev.title || ev.glance_title || "Event";
       const streamRune = (ev.source === 'crm') ? '[◈]' : (ev.source === 'tprm' ? '[⏣]' : '[●]');
 
       card.innerHTML = `

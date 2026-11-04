@@ -51,7 +51,7 @@ import export_ics
 class CalendarHUDWindow(Gtk.Window):
     def __init__(self):
         super().__init__(type=Gtk.WindowType.TOPLEVEL)
-        self.set_title("Cyberdeck // Calendar HUD")
+        self.set_title("Cyberdeck // Calendar")
         self.set_wmclass("cyberdeck-calendar", "CyberdeckCalendar")
         self.set_role("calendar-hud")
         self.set_decorated(False)
@@ -110,14 +110,6 @@ class CalendarHUDWindow(Gtk.Window):
         # Window event bindings
         self.connect("delete-event", self.on_delete_event)
         self.connect("configure-event", self.on_configure_event)
-
-        # Window dragging state
-        self._dragging = False
-        self._drag_start_x = 0
-        self._drag_start_y = 0
-
-        # Enable dragging from title bar
-        self.webview.connect("button-press-event", self.on_button_press)
 
     def load_geometry(self):
         """Restores saved window geometry."""
