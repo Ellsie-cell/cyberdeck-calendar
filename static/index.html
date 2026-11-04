@@ -1,0 +1,1007 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Cyberdeck // Calendar HUD</title>
+  <style>
+    :root {
+      --bg-dark: rgba(13, 15, 24, 0.92);
+      --bg-card: rgba(20, 22, 34, 0.85);
+      --bg-hover: rgba(35, 38, 58, 0.9);
+      --border-dim: #2a2e42;
+      --border-glow: #bb9af7;
+      --text-main: #c0caf5;
+      --text-muted: #565f89;
+      --text-bright: #ffffff;
+      
+      --neon-purple: #bb9af7;
+      --neon-cyan: #7dcfff;
+      --neon-amber: #e0af68;
+      --neon-green: #73daca;
+      --neon-red: #f7768e;
+
+      --crm-color: #bb9af7;
+      --tprm-color: #e0af68;
+      --ops-color: #73daca;
+
+      --font-mono: 'JetBrains Mono', 'Fira Code', 'DejaVu Sans Mono', monospace;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      user-select: none;
+    }
+
+    body {
+      background: transparent;
+      color: var(--text-main);
+      font-family: var(--font-mono);
+      font-size: 13px;
+      overflow: hidden;
+      width: 100vw;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* Main Glass HUD Container */
+    .hud-container {
+      width: 100%;
+      height: 100%;
+      background: var(--bg-dark);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 1px solid var(--border-dim);
+      border-radius: 12px;
+      box-shadow: 0 0 25px rgba(0, 0, 0, 0.7), 0 0 10px rgba(187, 154, 247, 0.15);
+      display: flex;
+      flex-direction: column;
+      position: relative;
+      overflow: hidden;
+    }
+
+    /* Cyber Corner Brackets */
+    .hud-container::before {
+      content: "";
+      position: absolute;
+      top: 0; left: 0;
+      width: 16px; height: 16px;
+      border-top: 2px solid var(--neon-cyan);
+      border-left: 2px solid var(--neon-cyan);
+      pointer-events: none;
+      z-index: 100;
+    }
+    .hud-container::after {
+      content: "";
+      position: absolute;
+      bottom: 0; right: 0;
+      width: 16px; height: 16px;
+      border-bottom: 2px solid var(--neon-purple);
+      border-right: 2px solid var(--neon-purple);
+      pointer-events: none;
+      z-index: 100;
+    }
+
+    /* Header & Window Bar */
+    .hud-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 10px 14px;
+      background: rgba(18, 20, 32, 0.95);
+      border-bottom: 1px solid var(--border-dim);
+      cursor: grab;
+      -webkit-app-region: drag;
+    }
+    .hud-header:active {
+      cursor: grabbing;
+    }
+
+    .header-left {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .brand-title {
+      font-weight: 700;
+      font-size: 13px;
+      letter-spacing: 1px;
+      color: var(--neon-cyan);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .badge-pill {
+      font-size: 11px;
+      padding: 2px 8px;
+      border-radius: 4px;
+      background: rgba(40, 44, 68, 0.7);
+      border: 1px solid var(--border-dim);
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      transition: all 0.2s ease;
+      -webkit-app-region: no-drag;
+    }
+    .badge-pill:hover {
+      background: var(--bg-hover);
+      border-color: var(--neon-purple);
+    }
+    .badge-pill.active-crm {
+      border-color: var(--crm-color);
+      color: var(--crm-color);
+      background: rgba(187, 154, 247, 0.12);
+    }
+    .badge-pill.active-tprm {
+      border-color: var(--tprm-color);
+      color: var(--tprm-color);
+      background: rgba(224, 175, 104, 0.12);
+    }
+    .badge-pill.active-ops {
+      border-color: var(--ops-color);
+      color: var(--ops-color);
+      background: rgba(115, 218, 202, 0.12);
+    }
+    .badge-pill.vault-online {
+      color: var(--neon-green);
+      border-color: rgba(115, 218, 202, 0.4);
+    }
+    .badge-pill.vault-offline {
+      color: var(--neon-amber);
+      border-color: rgba(224, 175, 104, 0.4);
+    }
+
+    .header-right {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      -webkit-app-region: no-drag;
+    }
+
+    .window-btn {
+      width: 24px;
+      height: 24px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: transparent;
+      border: 1px solid var(--border-dim);
+      border-radius: 4px;
+      color: var(--text-muted);
+      cursor: pointer;
+      font-size: 11px;
+      transition: all 0.15s;
+    }
+    .window-btn:hover {
+      color: var(--text-bright);
+      border-color: var(--neon-cyan);
+      background: rgba(125, 207, 255, 0.1);
+    }
+    .window-btn.close:hover {
+      border-color: var(--neon-red);
+      color: var(--neon-red);
+      background: rgba(247, 118, 142, 0.1);
+    }
+
+    /* Sub-Nav Controls Bar */
+    .controls-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 8px 14px;
+      background: rgba(15, 17, 26, 0.85);
+      border-bottom: 1px solid var(--border-dim);
+      -webkit-app-region: no-drag;
+    }
+
+    .nav-controls {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .nav-btn {
+      background: rgba(30, 33, 50, 0.8);
+      border: 1px solid var(--border-dim);
+      color: var(--text-main);
+      padding: 4px 10px;
+      border-radius: 4px;
+      font-size: 11px;
+      font-family: var(--font-mono);
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .nav-btn:hover {
+      border-color: var(--neon-purple);
+      color: var(--text-bright);
+    }
+    .current-month-label {
+      font-weight: 700;
+      font-size: 14px;
+      color: var(--text-bright);
+      margin-left: 8px;
+      letter-spacing: 0.5px;
+    }
+
+    .view-controls {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .view-btn {
+      background: transparent;
+      border: 1px solid var(--border-dim);
+      color: var(--text-muted);
+      padding: 3px 8px;
+      border-radius: 4px;
+      font-size: 10px;
+      font-family: var(--font-mono);
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .view-btn:hover, .view-btn.active {
+      color: var(--neon-cyan);
+      border-color: var(--neon-cyan);
+      background: rgba(125, 207, 255, 0.08);
+    }
+
+    /* Calendar Grid Container */
+    .cal-body {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      position: relative;
+    }
+
+    .cal-weekdays {
+      display: grid;
+      grid-template-columns: repeat(7, 1fr);
+      background: rgba(20, 22, 34, 0.9);
+      border-bottom: 1px solid var(--border-dim);
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--text-muted);
+      text-align: center;
+      padding: 6px 0;
+    }
+
+    .cal-grid {
+      flex: 1;
+      display: grid;
+      grid-template-columns: repeat(7, 1fr);
+      grid-auto-rows: 1fr;
+      overflow-y: auto;
+      gap: 1px;
+      background: rgba(30, 33, 50, 0.4);
+    }
+
+    .cal-cell {
+      background: rgba(16, 18, 28, 0.95);
+      padding: 4px;
+      display: flex;
+      flex-direction: column;
+      min-height: 80px;
+      position: relative;
+      transition: background 0.15s;
+      border-top: 1px solid rgba(255, 255, 255, 0.02);
+      border-left: 1px solid rgba(255, 255, 255, 0.02);
+    }
+    .cal-cell:hover {
+      background: rgba(24, 27, 42, 0.98);
+    }
+    .cal-cell.other-month {
+      opacity: 0.35;
+    }
+    .cal-cell.today {
+      background: rgba(30, 34, 56, 0.95);
+      box-shadow: inset 0 0 0 1px var(--neon-purple);
+    }
+    .cell-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 4px;
+      padding: 2px 4px;
+    }
+    .cell-num {
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--text-muted);
+    }
+    .cal-cell.today .cell-num {
+      color: var(--neon-cyan);
+    }
+
+    .cell-events {
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+      overflow-y: auto;
+      flex: 1;
+    }
+
+    /* Event Badge Chips (Dual-Layer) */
+    .event-chip {
+      padding: 3px 6px;
+      border-radius: 3px;
+      font-size: 10px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      border-left: 2px solid;
+      background: rgba(25, 28, 44, 0.9);
+      transition: transform 0.1s, box-shadow 0.1s;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .event-chip:hover {
+      transform: translateX(2px);
+      box-shadow: 0 0 8px rgba(0, 0, 0, 0.5);
+    }
+    .event-chip.crm {
+      border-color: var(--crm-color);
+      color: #d1bfff;
+      background: rgba(187, 154, 247, 0.12);
+    }
+    .event-chip.tprm {
+      border-color: var(--tprm-color);
+      color: #ffe0a3;
+      background: rgba(224, 175, 104, 0.12);
+    }
+    .event-chip.ops {
+      border-color: var(--ops-color);
+      color: #a6f3e5;
+      background: rgba(115, 218, 202, 0.12);
+    }
+
+    /* Agenda View */
+    .agenda-view {
+      display: none;
+      flex: 1;
+      overflow-y: auto;
+      padding: 12px;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .agenda-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-dim);
+      border-radius: 6px;
+      padding: 10px 14px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .agenda-card:hover {
+      border-color: var(--neon-purple);
+      background: var(--bg-hover);
+    }
+
+    /* Deep Workflow Drawer */
+    .drawer-overlay {
+      position: absolute;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      background: rgba(5, 6, 12, 0.6);
+      backdrop-filter: blur(4px);
+      display: none;
+      z-index: 200;
+    }
+    .drawer-overlay.open {
+      display: block;
+    }
+
+    .workflow-drawer {
+      position: absolute;
+      top: 0; right: -420px;
+      width: 400px;
+      height: 100%;
+      background: rgba(16, 18, 28, 0.98);
+      border-left: 1px solid var(--border-glow);
+      box-shadow: -10px 0 30px rgba(0, 0, 0, 0.8);
+      display: flex;
+      flex-direction: column;
+      transition: right 0.25s cubic-bezier(0.1, 0.9, 0.2, 1);
+      z-index: 210;
+    }
+    .workflow-drawer.open {
+      right: 0;
+    }
+
+    .drawer-header {
+      padding: 14px;
+      background: rgba(24, 27, 42, 0.95);
+      border-bottom: 1px solid var(--border-dim);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .drawer-title {
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--neon-cyan);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .drawer-close {
+      background: transparent;
+      border: 1px solid var(--border-dim);
+      color: var(--text-muted);
+      border-radius: 4px;
+      padding: 2px 6px;
+      cursor: pointer;
+      font-size: 11px;
+    }
+    .drawer-close:hover {
+      color: var(--neon-red);
+      border-color: var(--neon-red);
+    }
+
+    .drawer-body {
+      flex: 1;
+      padding: 16px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    .drawer-section {
+      background: rgba(24, 27, 42, 0.7);
+      border: 1px solid var(--border-dim);
+      border-radius: 6px;
+      padding: 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .drawer-label {
+      font-size: 10px;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .drawer-val {
+      font-size: 13px;
+      color: var(--text-bright);
+      font-weight: 600;
+    }
+    .drawer-notes {
+      font-size: 12px;
+      color: var(--text-main);
+      line-height: 1.4;
+      white-space: pre-wrap;
+    }
+
+    .drawer-actions {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      margin-top: auto;
+    }
+
+    .action-btn {
+      width: 100%;
+      padding: 8px;
+      border-radius: 4px;
+      border: 1px solid var(--border-dim);
+      background: rgba(30, 33, 50, 0.85);
+      color: var(--text-bright);
+      font-family: var(--font-mono);
+      font-size: 12px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      transition: all 0.2s;
+    }
+    .action-btn:hover {
+      background: var(--bg-hover);
+      border-color: var(--neon-cyan);
+      box-shadow: 0 0 10px rgba(125, 207, 255, 0.2);
+    }
+    .action-btn.crm:hover {
+      border-color: var(--crm-color);
+      box-shadow: 0 0 10px rgba(187, 154, 247, 0.2);
+    }
+    .action-btn.tprm:hover {
+      border-color: var(--tprm-color);
+      box-shadow: 0 0 10px rgba(224, 175, 104, 0.2);
+    }
+    .action-btn.delete {
+      color: var(--neon-red);
+    }
+    .action-btn.delete:hover {
+      border-color: var(--neon-red);
+      background: rgba(247, 118, 142, 0.1);
+    }
+
+    /* Modal for Quick Ops Task */
+    .task-modal {
+      position: absolute;
+      top: 50%; left: 50%;
+      transform: translate(-50%, -50%);
+      width: 360px;
+      background: rgba(18, 20, 32, 0.98);
+      border: 1px solid var(--neon-purple);
+      border-radius: 8px;
+      box-shadow: 0 0 30px rgba(0, 0, 0, 0.9);
+      padding: 16px;
+      display: none;
+      flex-direction: column;
+      gap: 12px;
+      z-index: 300;
+    }
+    .task-modal.open {
+      display: flex;
+    }
+    .input-field {
+      width: 100%;
+      padding: 6px 10px;
+      background: rgba(10, 12, 20, 0.9);
+      border: 1px solid var(--border-dim);
+      border-radius: 4px;
+      color: var(--text-bright);
+      font-family: var(--font-mono);
+      font-size: 12px;
+    }
+    .input-field:focus {
+      outline: none;
+      border-color: var(--neon-cyan);
+    }
+  </style>
+</head>
+<body>
+
+<div class="hud-container">
+  <!-- Top Draggable Header Bar -->
+  <div class="hud-header">
+    <div class="header-left">
+      <span class="brand-title">[◈] CYBERDECK // CALENDAR HUD</span>
+      <span id="vaultStatusBadge" class="badge-pill vault-online">[● VAULT ONLINE]</span>
+      <span id="privacyToggleBtn" class="badge-pill" onclick="togglePrivacyMode()">[🛡️ PRIVACY: GLANCE]</span>
+      <span id="crmFilterBtn" class="badge-pill active-crm" onclick="toggleStreamFilter('crm')">[◈ CRM]</span>
+      <span id="tprmFilterBtn" class="badge-pill active-tprm" onclick="toggleStreamFilter('tprm')">[⏣ TPRM]</span>
+      <span id="opsFilterBtn" class="badge-pill active-ops" onclick="toggleStreamFilter('ops')">[● OPS]</span>
+    </div>
+    <div class="header-right">
+      <span class="badge-pill" onclick="openNewTaskModal()">[+ NEW TASK]</span>
+      <span class="badge-pill" onclick="triggerProtonExport()">[EXPORT PROTON .ICS]</span>
+      <button class="window-btn" onclick="postToBackend('minimize')">[─]</button>
+      <button class="window-btn close" onclick="postToBackend('close')">[✕]</button>
+    </div>
+  </div>
+
+  <!-- Navigation & View Control Bar -->
+  <div class="controls-bar">
+    <div class="nav-controls">
+      <button class="nav-btn" onclick="prevMonth()">[◄]</button>
+      <button class="nav-btn" onclick="goToToday()">[TODAY]</button>
+      <button class="nav-btn" onclick="nextMonth()">[►]</button>
+      <span id="currentMonthYearLabel" class="current-month-label">NOVEMBER 2026</span>
+    </div>
+    <div class="view-controls">
+      <button id="viewMonthBtn" class="view-btn active" onclick="switchView('month')">[MONTH]</button>
+      <button id="viewAgendaBtn" class="view-btn" onclick="switchView('agenda')">[AGENDA]</button>
+    </div>
+  </div>
+
+  <!-- Main Calendar Viewport -->
+  <div class="cal-body">
+    <!-- Month Grid View -->
+    <div id="monthViewWrapper" style="display: flex; flex-direction: column; flex: 1; height: 100%;">
+      <div class="cal-weekdays">
+        <div>SUN</div><div>MON</div><div>TUE</div><div>WED</div><div>THU</div><div>FRI</div><div>SAT</div>
+      </div>
+      <div id="calendarGrid" class="cal-grid">
+        <!-- Cells generated dynamically by JS -->
+      </div>
+    </div>
+
+    <!-- Agenda View -->
+    <div id="agendaViewWrapper" class="agenda-view">
+      <!-- Agenda cards generated dynamically by JS -->
+    </div>
+  </div>
+
+  <!-- Deep Workflow Side Drawer -->
+  <div id="drawerOverlay" class="drawer-overlay" onclick="closeDrawer()"></div>
+  <div id="workflowDrawer" class="workflow-drawer">
+    <div class="drawer-header">
+      <span id="drawerStreamBadge" class="drawer-title">[◈ AURA CRM DOSSIER]</span>
+      <button class="drawer-close" onclick="closeDrawer()">[ESC ✕]</button>
+    </div>
+    <div class="drawer-body">
+      <div class="drawer-section">
+        <span class="drawer-label">EVENT TITLE / SCOPE</span>
+        <span id="drawerTitle" class="drawer-val">—</span>
+      </div>
+      <div class="drawer-section">
+        <span class="drawer-label">DATE & SCHEDULE</span>
+        <span id="drawerDate" class="drawer-val">—</span>
+      </div>
+      <div class="drawer-section">
+        <span class="drawer-label">COUNTERPARTY / ENTITY</span>
+        <span id="drawerCounterparty" class="drawer-val">—</span>
+      </div>
+      <div id="drawerRateSection" class="drawer-section" style="display: none;">
+        <span class="drawer-label">CONTRACT VALUE / RISK TIER</span>
+        <span id="drawerRate" class="drawer-val">—</span>
+      </div>
+      <div class="drawer-section">
+        <span class="drawer-label">INTELLIGENCE & NOTES</span>
+        <div id="drawerNotes" class="drawer-notes">—</div>
+      </div>
+
+      <div class="drawer-actions">
+        <button id="drawerLaunchCrmBtn" class="action-btn crm" style="display: none;" onclick="launchAuraCrm()">
+          <span>[◈]</span> OPEN IN AURA CRM
+        </button>
+        <button id="drawerLaunchTprmBtn" class="action-btn tprm" style="display: none;" onclick="launchAuraTprm()">
+          <span>[⏣]</span> AUDIT IN AURA TPRM
+        </button>
+        <button class="action-btn" onclick="exportCurrentEventIcs()">
+          <span>[SYNC]</span> EXPORT THIS EVENT (.ICS)
+        </button>
+        <button id="drawerDeleteOpsBtn" class="action-btn delete" style="display: none;" onclick="deleteCurrentOpsEvent()">
+          <span>[✕]</span> DELETE OPS TASK
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Quick Add Task Modal -->
+  <div id="taskModal" class="task-modal">
+    <div style="display: flex; justify-content: space-between; align-items: center;">
+      <span style="font-weight: 700; color: var(--neon-cyan);">[+] NEW CYBERDECK TASK</span>
+      <button class="drawer-close" onclick="closeNewTaskModal()">[✕]</button>
+    </div>
+    <div>
+      <span class="drawer-label">TASK TITLE</span>
+      <input id="newTaskTitle" class="input-field" type="text" placeholder="e.g. Memory Audit & Cache Prune" />
+    </div>
+    <div>
+      <span class="drawer-label">DATE (YYYY-MM-DD)</span>
+      <input id="newTaskDate" class="input-field" type="date" />
+    </div>
+    <div>
+      <span class="drawer-label">NOTES</span>
+      <textarea id="newTaskNotes" class="input-field" rows="3" placeholder="Operational details..."></textarea>
+    </div>
+    <div style="display: flex; gap: 8px; margin-top: 6px;">
+      <button class="action-btn" onclick="saveNewTask()">[SAVE EVENT]</button>
+      <button class="action-btn delete" onclick="closeNewTaskModal()">[CANCEL]</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  let currentDate = new Date();
+  let currentView = 'month';
+  let privacyMode = 'glance'; // 'glance' or 'revealed'
+  let filterStreams = { crm: true, tprm: true, ops: true };
+  let allEvents = [];
+  let selectedEvent = null;
+
+  // IPC Bridge to Python GTK backend
+  function postToBackend(action, payload = {}) {
+    if (window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.cyberdeckCalendar) {
+      window.webkit.messageHandlers.cyberdeckCalendar.postMessage({ action, ...payload });
+    } else {
+      console.log("[IPC Dev Fallback]", action, payload);
+    }
+  }
+
+  // Load events from Python bridge or local fetch
+  function reloadData() {
+    postToBackend('fetch_events', { glance_mode: privacyMode === 'glance' });
+  }
+
+  // Called from Python when events arrive
+  function onEventsLoaded(data) {
+    if (data.lockbox_online) {
+      document.getElementById('vaultStatusBadge').className = 'badge-pill vault-online';
+      document.getElementById('vaultStatusBadge').innerText = '[● VAULT ONLINE]';
+    } else {
+      document.getElementById('vaultStatusBadge').className = 'badge-pill vault-offline';
+      document.getElementById('vaultStatusBadge').innerText = '[○ VAULT OFFLINE]';
+    }
+
+    allEvents = data.events || [];
+    render();
+  }
+
+  function togglePrivacyMode() {
+    privacyMode = (privacyMode === 'glance') ? 'revealed' : 'glance';
+    const btn = document.getElementById('privacyToggleBtn');
+    if (privacyMode === 'glance') {
+      btn.innerText = '[🛡️ PRIVACY: GLANCE]';
+      btn.style.borderColor = 'var(--border-dim)';
+    } else {
+      btn.innerText = '[◈ PRIVACY: REVEALED]';
+      btn.style.borderColor = 'var(--neon-cyan)';
+    }
+    render();
+  }
+
+  function toggleStreamFilter(stream) {
+    filterStreams[stream] = !filterStreams[stream];
+    const btn = document.getElementById(stream + 'FilterBtn');
+    btn.classList.toggle('active-' + stream, filterStreams[stream]);
+    render();
+  }
+
+  function switchView(view) {
+    currentView = view;
+    document.getElementById('viewMonthBtn').classList.toggle('active', view === 'month');
+    document.getElementById('viewAgendaBtn').classList.toggle('active', view === 'agenda');
+
+    if (view === 'month') {
+      document.getElementById('monthViewWrapper').style.display = 'flex';
+      document.getElementById('agendaViewWrapper').style.display = 'none';
+    } else {
+      document.getElementById('monthViewWrapper').style.display = 'none';
+      document.getElementById('agendaViewWrapper').style.display = 'flex';
+    }
+    render();
+  }
+
+  function prevMonth() {
+    currentDate.setMonth(currentDate.getMonth() - 1);
+    render();
+  }
+  function nextMonth() {
+    currentDate.setMonth(currentDate.getMonth() + 1);
+    render();
+  }
+  function goToToday() {
+    currentDate = new Date();
+    render();
+  }
+
+  function render() {
+    const year = currentDate.getFullYear();
+    const month = currentDate.getMonth();
+
+    const monthNames = [
+      "JANUARY", "FEBRUARY", "MARCH", "APRIL", "MAY", "JUNE",
+      "JULY", "AUGUST", "SEPTEMBER", "OCTOBER", "NOVEMBER", "DECEMBER"
+    ];
+    document.getElementById('currentMonthYearLabel').innerText = `${monthNames[month]} ${year}`;
+
+    if (currentView === 'month') {
+      renderMonthGrid(year, month);
+    } else {
+      renderAgenda();
+    }
+  }
+
+  function renderMonthGrid(year, month) {
+    const grid = document.getElementById('calendarGrid');
+    grid.innerHTML = '';
+
+    const firstDay = new Date(year, month, 1).getDay();
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
+    const daysInPrevMonth = new Date(year, month, 0).getDate();
+
+    const today = new Date();
+    const isCurrentMonth = (today.getFullYear() === year && today.getMonth() === month);
+
+    // Filter events by active stream toggles
+    const activeEvents = allEvents.filter(e => filterStreams[e.source] !== false);
+
+    // Previous month filler cells
+    for (let i = firstDay - 1; i >= 0; i--) {
+      const dayNum = daysInPrevMonth - i;
+      grid.appendChild(createCell(dayNum, true));
+    }
+
+    // Current month cells
+    for (let day = 1; day <= daysInMonth; day++) {
+      const isToday = isCurrentMonth && (today.getDate() === day);
+      const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+      const dayEvents = activeEvents.filter(e => e.start && e.start.startsWith(dateStr));
+      grid.appendChild(createCell(day, false, isToday, dayEvents, dateStr));
+    }
+
+    // Next month filler cells
+    const totalRendered = firstDay + daysInMonth;
+    const remaining = (7 - (totalRendered % 7)) % 7;
+    for (let day = 1; day <= remaining; day++) {
+      grid.appendChild(createCell(day, true));
+    }
+  }
+
+  function createCell(num, isOtherMonth, isToday = false, events = [], dateStr = '') {
+    const cell = document.createElement('div');
+    cell.className = 'cal-cell' + (isOtherMonth ? ' other-month' : '') + (isToday ? ' today' : '');
+
+    const header = document.createElement('div');
+    header.className = 'cell-header';
+    header.innerHTML = `<span class="cell-num">${num}</span>`;
+    cell.appendChild(header);
+
+    const eventBox = document.createElement('div');
+    eventBox.className = 'cell-events';
+
+    events.forEach(ev => {
+      const chip = document.createElement('div');
+      chip.className = `event-chip ${ev.source}`;
+      
+      // Dual-Layer Privacy display check
+      const labelText = (privacyMode === 'glance') ? (ev.glance_title || ev.badge) : (ev.full_title || ev.title);
+      chip.innerText = labelText;
+      chip.title = (privacyMode === 'glance') ? "Click to view detailed dossier" : labelText;
+
+      chip.onclick = (e) => {
+        e.stopPropagation();
+        openDrawer(ev);
+      };
+      eventBox.appendChild(chip);
+    });
+
+    cell.appendChild(eventBox);
+
+    if (dateStr && !isOtherMonth) {
+      cell.onclick = () => {
+        document.getElementById('newTaskDate').value = dateStr;
+        openNewTaskModal();
+      };
+    }
+
+    return cell;
+  }
+
+  function renderAgenda() {
+    const wrapper = document.getElementById('agendaViewWrapper');
+    wrapper.innerHTML = '';
+
+    const activeEvents = allEvents.filter(e => filterStreams[e.source] !== false);
+    if (activeEvents.length === 0) {
+      wrapper.innerHTML = '<div style="color: var(--text-muted); text-align: center; padding: 40px;">No scheduled events in active streams.</div>';
+      return;
+    }
+
+    activeEvents.sort((a, b) => (a.start || "").localeCompare(b.start || ""));
+
+    activeEvents.forEach(ev => {
+      const card = document.createElement('div');
+      card.className = 'agenda-card';
+      const labelText = (privacyMode === 'glance') ? (ev.glance_title || ev.badge) : (ev.full_title || ev.title);
+      const streamRune = (ev.source === 'crm') ? '[◈]' : (ev.source === 'tprm' ? '[⏣]' : '[●]');
+
+      card.innerHTML = `
+        <div style="display: flex; align-items: center; gap: 10px;">
+          <span style="color: ${ev.color_scheme ? ev.color_scheme.primary : '#fff'}; font-weight: 700;">${streamRune}</span>
+          <div>
+            <div style="font-weight: 600; color: var(--text-bright);">${labelText}</div>
+            <div style="font-size: 11px; color: var(--text-muted);">${ev.start || "All Day"}</div>
+          </div>
+        </div>
+        <span class="badge-pill">${ev.source.toUpperCase()}</span>
+      `;
+      card.onclick = () => openDrawer(ev);
+      wrapper.appendChild(card);
+    });
+  }
+
+  function openDrawer(ev) {
+    selectedEvent = ev;
+    const isCrm = (ev.source === 'crm');
+    const isTprm = (ev.source === 'tprm');
+    const isOps = (ev.source === 'ops');
+
+    document.getElementById('drawerStreamBadge').innerText = isCrm ? '[◈ AURA CRM DOSSIER]' : (isTprm ? '[⏣ AURA TPRM DOSSIER]' : '[● CYBERDECK OPS TASK]');
+    document.getElementById('drawerTitle').innerText = ev.full_title || ev.title || "Scheduled Event";
+    document.getElementById('drawerDate').innerText = ev.start || "Unspecified";
+    document.getElementById('drawerCounterparty').innerText = ev.counterparty || (ev.organization ? `${ev.organization}` : "Cyberdeck Local");
+    
+    // TPRM rate / risk section
+    const rateSec = document.getElementById('drawerRateSection');
+    if (isTprm && (ev.rate || ev.risk_tier)) {
+      rateSec.style.display = 'flex';
+      document.getElementById('drawerRate').innerText = `${ev.risk_tier || 'CLEAN'} • $${ev.rate || 0}`;
+    } else {
+      rateSec.style.display = 'none';
+    }
+
+    document.getElementById('drawerNotes').innerText = ev.notes || "No additional intelligence recorded.";
+
+    document.getElementById('drawerLaunchCrmBtn').style.display = isCrm ? 'flex' : 'none';
+    document.getElementById('drawerLaunchTprmBtn').style.display = isTprm ? 'flex' : 'none';
+    document.getElementById('drawerDeleteOpsBtn').style.display = isOps ? 'flex' : 'none';
+
+    document.getElementById('drawerOverlay').classList.add('open');
+    document.getElementById('workflowDrawer').classList.add('open');
+  }
+
+  function closeDrawer() {
+    document.getElementById('drawerOverlay').classList.remove('open');
+    document.getElementById('workflowDrawer').classList.remove('open');
+    selectedEvent = null;
+  }
+
+  function launchAuraCrm() {
+    postToBackend('launch_crm');
+  }
+  function launchAuraTprm() {
+    postToBackend('launch_tprm');
+  }
+  function triggerProtonExport() {
+    postToBackend('export_ics', { stream: 'all', glance_only: false });
+  }
+  function exportCurrentEventIcs() {
+    if (selectedEvent) {
+      postToBackend('export_single_ics', { event: selectedEvent });
+    }
+  }
+  function deleteCurrentOpsEvent() {
+    if (selectedEvent && selectedEvent.id) {
+      postToBackend('delete_ops_event', { id: selectedEvent.id });
+      closeDrawer();
+      setTimeout(reloadData, 300);
+    }
+  }
+
+  // Quick Add Modal
+  function openNewTaskModal() {
+    if (!document.getElementById('newTaskDate').value) {
+      document.getElementById('newTaskDate').value = new Date().toISOString().split('T')[0];
+    }
+    document.getElementById('taskModal').classList.add('open');
+  }
+  function closeNewTaskModal() {
+    document.getElementById('taskModal').classList.remove('open');
+    document.getElementById('newTaskTitle').value = '';
+    document.getElementById('newTaskNotes').value = '';
+  }
+  function saveNewTask() {
+    const title = document.getElementById('newTaskTitle').value.trim();
+    const date = document.getElementById('newTaskDate').value;
+    const notes = document.getElementById('newTaskNotes').value.trim();
+
+    if (!title || !date) {
+      alert("Title and Date are required.");
+      return;
+    }
+
+    postToBackend('add_ops_event', {
+      title,
+      start: date,
+      end: date,
+      notes,
+      category: "task"
+    });
+
+    closeNewTaskModal();
+    setTimeout(reloadData, 300);
+  }
+
+  // Escape key closes modal & drawer
+  window.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+      closeDrawer();
+      closeNewTaskModal();
+    }
+  });
+
+  // Initial load
+  window.addEventListener('DOMContentLoaded', () => {
+    reloadData();
+  });
+</script>
+</body>
+</html>
