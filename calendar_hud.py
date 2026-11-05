@@ -108,6 +108,7 @@ class CalendarHUDWindow(Gtk.Window):
         self.webview.load_uri(INDEX_HTML.as_uri())
 
         # Window event bindings
+        self._geom_save_timer = None
         self.connect("delete-event", self.on_delete_event)
         self.connect("configure-event", self.on_configure_event)
 
@@ -140,8 +141,15 @@ class CalendarHUDWindow(Gtk.Window):
         except Exception:
             pass
 
-    def on_configure_event(self, widget, event):
+    def _debounced_save_geometry(self):
         self.save_geometry()
+        self._geom_save_timer = None
+        return False
+
+    def on_configure_event(self, widget, event):
+        if self._geom_save_timer is not None:
+            GLib.source_remove(self._geom_save_timer)
+        self._geom_save_timer = GLib.timeout_add(500, self._debounced_save_geometry)
         return False
 
     def on_delete_event(self, widget, event):
