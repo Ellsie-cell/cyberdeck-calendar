@@ -27,6 +27,10 @@ from typing import Dict, List, Any, Optional
 # Storage Paths
 LOCKBOX_DIR = Path("/run/media/ellsie/Lockbox")
 LOCKBOX_VAULT = LOCKBOX_DIR / "My 🔒︎Aura Social/Vault"
+CONTENT_CALENDARS_DIR = LOCKBOX_DIR / "My 🔒︎Aura Social/➖My Work/🔵CONTENT & ASSETS/🔵Content Calendars"
+STUDIO_ALPHA_DIR = CONTENT_CALENDARS_DIR / "Studio Alpha"
+STUDIO_NOIR_DIR = CONTENT_CALENDARS_DIR / "Studio Noir"
+
 HANA_CONFIG_DIR = Path.home() / ".config/hana"
 CYBERDECK_CONFIG_DIR = Path.home() / ".config/cyberdeck"
 LOCAL_EVENTS_FILE = CYBERDECK_CONFIG_DIR / "calendar_events.json"
@@ -60,10 +64,19 @@ def get_aura_vault_path() -> Optional[Path]:
         return local_vault.resolve()
     return None
 
+def get_ops_events_path() -> Path:
+    """Returns authoritative path to calendar_events.json."""
+    if is_lockbox_mounted():
+        lb_file = LOCKBOX_VAULT / "calendar_events.json"
+        if lb_file.exists():
+            return lb_file
+    return LOCAL_EVENTS_FILE
+
 def load_local_ops_events() -> List[Dict[str, Any]]:
-    """Loads personal/Cyberdeck ops events from local config JSON."""
+    """Loads personal/Cyberdeck ops events from authoritative JSON."""
     CYBERDECK_CONFIG_DIR.mkdir(parents=True, exist_ok=True)
-    if not LOCAL_EVENTS_FILE.exists():
+    target_path = get_ops_events_path()
+    if not target_path.exists():
         # Initialize with sample starter events
         today_str = datetime.date.today().isoformat()
         sample_events = [
@@ -81,16 +94,17 @@ def load_local_ops_events() -> List[Dict[str, Any]]:
         save_local_ops_events(sample_events)
         return sample_events
     try:
-        with open(LOCAL_EVENTS_FILE, "r", encoding="utf-8") as f:
+        with open(target_path, "r", encoding="utf-8") as f:
             return json.load(f)
     except Exception:
         return []
 
 def save_local_ops_events(events: List[Dict[str, Any]]) -> bool:
-    """Saves personal/Cyberdeck ops events to local config JSON."""
-    CYBERDECK_CONFIG_DIR.mkdir(parents=True, exist_ok=True)
+    """Saves personal/Cyberdeck ops events to authoritative JSON."""
+    target_path = get_ops_events_path()
     try:
-        with open(LOCAL_EVENTS_FILE, "w", encoding="utf-8") as f:
+        target_path.parent.mkdir(parents=True, exist_ok=True)
+        with open(target_path, "w", encoding="utf-8") as f:
             json.dump(events, f, indent=2)
         return True
     except Exception:
@@ -117,6 +131,98 @@ def delete_local_ops_event(event_id: str) -> bool:
         save_local_ops_events(filtered)
         return True
     return False
+
+# =============================================================================
+# STUDIO ALPHA & STUDIO NOIR (LOCKBOX CONTENT CALENDARS)
+# =============================================================================
+
+def load_studio_events(stream: str) -> List[Dict[str, Any]]:
+    """Loads events from Studio Alpha or Studio Noir on Lockbox."""
+    target_dir = STUDIO_ALPHA_DIR if stream == "alpha" else STUDIO_NOIR_DIR
+    schedule_file = target_dir / "schedule.json"
+    if not schedule_file.exists():
+        return []
+    try:
+        with open(schedule_file, "r", encoding="utf-8") as f:
+            return json.load(f)
+    except Exception:
+        return []
+
+def save_studio_events(stream: str, events: List[Dict[str, Any]]) -> bool:
+    """Saves events to Studio Alpha or Studio Noir on Lockbox."""
+    target_dir = STUDIO_ALPHA_DIR if stream == "alpha" else STUDIO_NOIR_DIR
+    target_dir.mkdir(parents=True, exist_ok=True)
+    schedule_file = target_dir / "schedule.json"
+    try:
+        with open(schedule_file, "w", encoding="utf-8") as f:
+            json.dump(events, f, indent=2)
+        return True
+    except Exception:
+        return False
+
+def add_studio_event(stream: str, event_data: Dict[str, Any]) -> Dict[str, Any]:
+    """Adds a new shoot or production event to Lockbox studio calendar."""
+    events = load_studio_events(stream)
+    prefix = "alpha" if stream == "alpha" else "noir"
+    new_id = f"{prefix}-{int(datetime.datetime.now().timestamp())}"
+    event_data["id"] = new_id
+    event_data["source"] = prefix
+    events.append(event_data)
+    save_studio_events(stream, events)
+    return event_data
+
+def delete_studio_event(stream: str, event_id: str) -> bool:
+    """Deletes a shoot or production event by ID."""
+    events = load_studio_events(stream)
+    initial_len = len(events)
+    filtered = [e for e in events if e.get("id") != event_id]
+    if len(filtered) != initial_len:
+        save_studio_events(stream, filtered)
+        return True
+    return False
+
+def fetch_studio_alpha_events() -> List[Dict[str, Any]]:
+    """Ingests Studio Alpha editorial shoots and releases."""
+    raw_events = load_studio_events("alpha")
+    formatted = []
+    for ev in raw_events:
+        item = dict(ev)
+        title = item.get("title", "Editorial Shoot")
+        item["source"] = "alpha"
+        item["badge"] = item.get("badge") or "[● ALPHA // SHOOT]"
+        item["glance_title"] = item.get("badge") or "[● ALPHA // EDITORIAL]"
+        item["full_title"] = f"[● ALPHA] {title}"
+        item["asset_folder"] = str(STUDIO_ALPHA_DIR / "Shoot Plans & Mood Boards")
+        item["color_scheme"] = {
+            "primary": "#ff79c6",
+            "accent": "#bd93f9",
+            "bg": "rgba(255, 121, 198, 0.18)",
+            "border": "#ff79c6"
+        }
+        formatted.append(item)
+    return formatted
+
+def fetch_studio_noir_events() -> List[Dict[str, Any]]:
+    """Ingests Studio Noir private productions (quarantined on-device)."""
+    raw_events = load_studio_events("noir")
+    formatted = []
+    for ev in raw_events:
+        item = dict(ev)
+        title = item.get("title", "Production")
+        item["source"] = "noir"
+        item["is_private"] = True
+        item["badge"] = item.get("badge") or "[⏣ NOIR // PRODUCTION]"
+        item["glance_title"] = "[ENC-CIPHER:••••••••]"
+        item["full_title"] = f"[⏣ NOIR] {title}"
+        item["asset_folder"] = str(STUDIO_NOIR_DIR / "Shoot Plans & Mood Boards")
+        item["color_scheme"] = {
+            "primary": "#bd93f9",
+            "accent": "#ff5555",
+            "bg": "rgba(189, 147, 249, 0.18)",
+            "border": "#bd93f9"
+        }
+        formatted.append(item)
+    return formatted
 
 def _decrypt_aura_vault() -> Optional[Dict[str, Any]]:
     """Directly decrypts Aura CRM vault using native cryptography without importing visualizers."""
@@ -299,6 +405,8 @@ def get_all_calendar_events(glance_mode: bool = False) -> Dict[str, Any]:
     crm_events = fetch_aura_crm_events()
     tprm_events = fetch_aura_tprm_events()
     ops_events = load_local_ops_events()
+    alpha_events = fetch_studio_alpha_events()
+    noir_events = fetch_studio_noir_events()
 
     # Format local ops events with color scheme
     formatted_ops = []
@@ -314,7 +422,7 @@ def get_all_calendar_events(glance_mode: bool = False) -> Dict[str, Any]:
         }
         formatted_ops.append(item)
 
-    all_events = crm_events + tprm_events + formatted_ops
+    all_events = crm_events + tprm_events + formatted_ops + alpha_events + noir_events
 
     # If glance_mode is requested, sanitize titles for visual glance privacy
     if glance_mode:
@@ -333,7 +441,9 @@ def get_all_calendar_events(glance_mode: bool = False) -> Dict[str, Any]:
             "total": len(all_events),
             "crm": len(crm_events),
             "tprm": len(tprm_events),
-            "ops": len(formatted_ops)
+            "ops": len(formatted_ops),
+            "alpha": len(alpha_events),
+            "noir": len(noir_events)
         },
         "events": all_events
     }

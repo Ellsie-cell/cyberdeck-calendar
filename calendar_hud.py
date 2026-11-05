@@ -239,6 +239,29 @@ class CalendarHUDWindow(Gtk.Window):
             elif action == "delete_ops_event":
                 calendar_bridge.delete_local_ops_event(payload.get("id"))
 
+            elif action == "open_folder":
+                folder_path = payload.get("path")
+                if folder_path and os.path.exists(folder_path):
+                    subprocess.Popen(["nautilus", folder_path], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, start_new_session=True)
+                else:
+                    self.notify_user("Folder Not Found", f"Cannot open folder: {folder_path}")
+
+            elif action == "add_studio_event":
+                stream = payload.get("stream", "alpha")
+                new_ev = {
+                    "title": payload.get("title"),
+                    "start": payload.get("start"),
+                    "end": payload.get("end"),
+                    "theme": payload.get("theme", ""),
+                    "status": payload.get("status", "Planning"),
+                    "notes": payload.get("notes", ""),
+                    "category": payload.get("category", "shoot")
+                }
+                calendar_bridge.add_studio_event(stream, new_ev)
+
+            elif action == "delete_studio_event":
+                calendar_bridge.delete_studio_event(payload.get("stream", "alpha"), payload.get("id"))
+
             elif action == "start_drag":
                 self.start_drag()
 

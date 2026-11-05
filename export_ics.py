@@ -69,6 +69,10 @@ def generate_ics_content(events: List[Dict[str, Any]], calendar_name: str = "Cyb
     ]
 
     for ev in events:
+        # Strict Cyberdeck Privacy Boundary: Noir stream is strictly quarantined on-device
+        if ev.get("is_private") or ev.get("source") == "noir":
+            continue
+
         eid = ev.get("id", "event-0")
         source = ev.get("source", "ops").upper()
         start_str = ev.get("start", "")
@@ -136,11 +140,21 @@ def export_calendar(destination: Optional[Path] = None, stream: str = "all", gla
     """
     Exports events to an .ics file ready for Proton Calendar import.
     """
+    if stream == "noir":
+        return {
+            "ok": False,
+            "error": "Security Boundary Intercept: Studio Noir is quarantined to on-device view and blocked from cloud/Proton exports.",
+            "count": 0
+        }
+
     data = get_all_calendar_events(glance_mode=glance_only)
     events = data.get("events", [])
 
     if stream != "all":
         events = [e for e in events if e.get("source") == stream]
+
+    # Filter out private/noir events
+    events = [e for e in events if not e.get("is_private") and e.get("source") != "noir"]
 
     if not destination:
         DEFAULT_EXPORT_DIR.mkdir(parents=True, exist_ok=True)

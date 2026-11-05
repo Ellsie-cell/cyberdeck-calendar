@@ -388,6 +388,30 @@
       color: #a6f3e5;
       background: rgba(115, 218, 202, 0.12);
     }
+    .event-chip.alpha {
+      border-color: #ff79c6;
+      color: #ff79c6;
+      background: rgba(255, 121, 198, 0.12);
+    }
+    .event-chip.noir {
+      border-color: #bd93f9;
+      color: #bd93f9;
+      background: rgba(189, 147, 249, 0.12);
+    }
+    .badge-pill.active-alpha {
+      border-color: #ff79c6;
+      color: #ff79c6;
+      background: rgba(255, 121, 198, 0.15);
+    }
+    .badge-pill.active-noir {
+      border-color: #bd93f9;
+      color: #bd93f9;
+      background: rgba(189, 147, 249, 0.15);
+    }
+    .action-btn.folder:hover {
+      border-color: #ff79c6;
+      box-shadow: 0 0 10px rgba(255, 121, 198, 0.2);
+    }
 
     /* Agenda View */
     .agenda-view {
@@ -610,6 +634,8 @@
       <span id="crmFilterBtn" class="badge-pill active-crm" onclick="toggleStreamFilter('crm')">[◈ CRM]</span>
       <span id="tprmFilterBtn" class="badge-pill active-tprm" onclick="toggleStreamFilter('tprm')">[⏣ TPRM]</span>
       <span id="opsFilterBtn" class="badge-pill active-ops" onclick="toggleStreamFilter('ops')">[● OPS]</span>
+      <span id="alphaFilterBtn" class="badge-pill active-alpha" onclick="toggleStreamFilter('alpha')">[● ALPHA]</span>
+      <span id="noirFilterBtn" class="badge-pill active-noir" onclick="toggleStreamFilter('noir')">[⏣ NOIR]</span>
     </div>
     <div class="header-right">
       <span class="badge-pill" onclick="openNewTaskModal()">[+ NEW TASK]</span>
@@ -682,39 +708,50 @@
       </div>
 
       <div class="drawer-actions">
+        <button id="drawerOpenFolderBtn" class="action-btn folder" style="display: none;" onclick="openAssetFolder()">
+          <span>[📂]</span> OPEN ASSET FOLDER IN LOCKBOX
+        </button>
         <button id="drawerLaunchCrmBtn" class="action-btn crm" style="display: none;" onclick="launchAuraCrm()">
           <span>[◈]</span> OPEN IN AURA CRM
         </button>
         <button id="drawerLaunchTprmBtn" class="action-btn tprm" style="display: none;" onclick="launchAuraTprm()">
           <span>[⏣]</span> AUDIT IN AURA TPRM
         </button>
-        <button class="action-btn" onclick="exportCurrentEventIcs()">
+        <button id="drawerExportIcsBtn" class="action-btn" onclick="exportCurrentEventIcs()">
           <span>[SYNC]</span> EXPORT THIS EVENT (.ICS)
         </button>
         <button id="drawerDeleteOpsBtn" class="action-btn delete" style="display: none;" onclick="deleteCurrentOpsEvent()">
-          <span>[✕]</span> DELETE OPS TASK
+          <span>[✕]</span> DELETE EVENT
         </button>
       </div>
     </div>
   </div>
 
-  <!-- Quick Add Task Modal -->
+  <!-- Quick Add Task / Shoot Modal -->
   <div id="taskModal" class="task-modal">
     <div style="display: flex; justify-content: space-between; align-items: center;">
-      <span style="font-weight: 700; color: var(--neon-cyan);">[+] NEW CYBERDECK TASK</span>
+      <span style="font-weight: 700; color: var(--neon-cyan);">[+] SCHEDULE EVENT / SHOOT</span>
       <button class="drawer-close" onclick="closeNewTaskModal()">[✕]</button>
     </div>
     <div>
-      <span class="drawer-label">TASK TITLE</span>
-      <input id="newTaskTitle" class="input-field" type="text" placeholder="e.g. Memory Audit & Cache Prune" />
+      <span class="drawer-label">STREAM / PIPELINE</span>
+      <select id="newTaskStream" class="input-field" style="color: var(--text-bright);">
+        <option value="ops">[● OPS] Cyberdeck Systems & Personal Task</option>
+        <option value="alpha">[● ALPHA] Studio Alpha (Editorial / SFW Shoot)</option>
+        <option value="noir">[⏣ NOIR] Studio Noir (Private Production)</option>
+      </select>
+    </div>
+    <div>
+      <span class="drawer-label">TITLE / CONCEPT</span>
+      <input id="newTaskTitle" class="input-field" type="text" placeholder="e.g. Neon Horizon Editorial Shoot" />
     </div>
     <div>
       <span class="drawer-label">DATE (YYYY-MM-DD)</span>
       <input id="newTaskDate" class="input-field" type="date" />
     </div>
     <div>
-      <span class="drawer-label">NOTES</span>
-      <textarea id="newTaskNotes" class="input-field" rows="3" placeholder="Operational details..."></textarea>
+      <span class="drawer-label">NOTES / DETAILS</span>
+      <textarea id="newTaskNotes" class="input-field" rows="3" placeholder="Lighting, mood board, or task details..."></textarea>
     </div>
     <div style="display: flex; gap: 8px; margin-top: 6px;">
       <button class="action-btn" onclick="saveNewTask()">[SAVE EVENT]</button>
@@ -727,7 +764,7 @@
   let currentDate = new Date();
   let currentView = 'month';
   let privacyMode = 'glance'; // 'glance' or 'revealed'
-  let filterStreams = { crm: true, tprm: true, ops: true };
+  let filterStreams = { crm: true, tprm: true, ops: true, alpha: true, noir: true };
   let allEvents = [];
   let selectedEvent = null;
 
@@ -896,7 +933,7 @@
       const card = document.createElement('div');
       card.className = 'agenda-card';
       const labelText = ev.full_title || ev.title || ev.glance_title || "Event";
-      const streamRune = (ev.source === 'crm') ? '[◈]' : (ev.source === 'tprm' ? '[⏣]' : '[●]');
+      const streamRune = (ev.source === 'crm') ? '[◈]' : (ev.source === 'tprm' || ev.source === 'noir' ? '[⏣]' : '[●]');
 
       card.innerHTML = `
         <div style="display: flex; align-items: center; gap: 10px;">
@@ -918,11 +955,19 @@
     const isCrm = (ev.source === 'crm');
     const isTprm = (ev.source === 'tprm');
     const isOps = (ev.source === 'ops');
+    const isAlpha = (ev.source === 'alpha');
+    const isNoir = (ev.source === 'noir');
 
-    document.getElementById('drawerStreamBadge').innerText = isCrm ? '[◈ AURA CRM DOSSIER]' : (isTprm ? '[⏣ AURA TPRM DOSSIER]' : '[● CYBERDECK OPS TASK]');
+    let badgeText = '[● CYBERDECK OPS TASK]';
+    if (isCrm) badgeText = '[◈ AURA CRM DOSSIER]';
+    else if (isTprm) badgeText = '[⏣ AURA TPRM DOSSIER]';
+    else if (isAlpha) badgeText = '[● STUDIO ALPHA // EDITORIAL]';
+    else if (isNoir) badgeText = '[⏣ STUDIO NOIR // PRODUCTION]';
+    document.getElementById('drawerStreamBadge').innerText = badgeText;
+
     document.getElementById('drawerTitle').innerText = ev.full_title || ev.title || "Scheduled Event";
     document.getElementById('drawerDate').innerText = ev.start || "Unspecified";
-    document.getElementById('drawerCounterparty').innerText = ev.counterparty || (ev.organization ? `${ev.organization}` : "Cyberdeck Local");
+    document.getElementById('drawerCounterparty').innerText = ev.counterparty || (ev.organization ? `${ev.organization}` : (isAlpha || isNoir ? "Lockbox Studio" : "Cyberdeck Local"));
     
     // TPRM rate / risk section
     const rateSec = document.getElementById('drawerRateSection');
@@ -937,7 +982,9 @@
 
     document.getElementById('drawerLaunchCrmBtn').style.display = isCrm ? 'flex' : 'none';
     document.getElementById('drawerLaunchTprmBtn').style.display = isTprm ? 'flex' : 'none';
-    document.getElementById('drawerDeleteOpsBtn').style.display = isOps ? 'flex' : 'none';
+    document.getElementById('drawerOpenFolderBtn').style.display = (ev.asset_folder) ? 'flex' : 'none';
+    document.getElementById('drawerExportIcsBtn').style.display = isNoir ? 'none' : 'flex';
+    document.getElementById('drawerDeleteOpsBtn').style.display = (isOps || isAlpha || isNoir) ? 'flex' : 'none';
 
     document.getElementById('drawerOverlay').classList.add('open');
     document.getElementById('workflowDrawer').classList.add('open');
@@ -947,6 +994,12 @@
     document.getElementById('drawerOverlay').classList.remove('open');
     document.getElementById('workflowDrawer').classList.remove('open');
     selectedEvent = null;
+  }
+
+  function openAssetFolder() {
+    if (selectedEvent && selectedEvent.asset_folder) {
+      postToBackend('open_folder', { path: selectedEvent.asset_folder });
+    }
   }
 
   function launchAuraCrm() {
@@ -960,12 +1013,20 @@
   }
   function exportCurrentEventIcs() {
     if (selectedEvent) {
+      if (selectedEvent.source === 'noir') {
+        alert("Security Barrier: Studio Noir is quarantined on-device and blocked from cloud/Proton exports.");
+        return;
+      }
       postToBackend('export_single_ics', { event: selectedEvent });
     }
   }
   function deleteCurrentOpsEvent() {
     if (selectedEvent && selectedEvent.id) {
-      postToBackend('delete_ops_event', { id: selectedEvent.id });
+      if (selectedEvent.source === 'alpha' || selectedEvent.source === 'noir') {
+        postToBackend('delete_studio_event', { stream: selectedEvent.source, id: selectedEvent.id });
+      } else {
+        postToBackend('delete_ops_event', { id: selectedEvent.id });
+      }
       closeDrawer();
       setTimeout(reloadData, 300);
     }
@@ -984,6 +1045,7 @@
     document.getElementById('newTaskNotes').value = '';
   }
   function saveNewTask() {
+    const stream = document.getElementById('newTaskStream').value;
     const title = document.getElementById('newTaskTitle').value.trim();
     const date = document.getElementById('newTaskDate').value;
     const notes = document.getElementById('newTaskNotes').value.trim();
@@ -993,13 +1055,24 @@
       return;
     }
 
-    postToBackend('add_ops_event', {
-      title,
-      start: date,
-      end: date,
-      notes,
-      category: "task"
-    });
+    if (stream === 'alpha' || stream === 'noir') {
+      postToBackend('add_studio_event', {
+        stream,
+        title,
+        start: date,
+        end: date,
+        notes,
+        category: (stream === 'alpha') ? "shoot" : "production"
+      });
+    } else {
+      postToBackend('add_ops_event', {
+        title,
+        start: date,
+        end: date,
+        notes,
+        category: "task"
+      });
+    }
 
     closeNewTaskModal();
     setTimeout(reloadData, 300);
