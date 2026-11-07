@@ -195,15 +195,6 @@
       position: relative;
       z-index: 60;
     }
-      justify-content: center;
-      background: transparent;
-      border: 1px solid var(--border-dim);
-      border-radius: 4px;
-      color: var(--text-muted);
-      cursor: pointer;
-      font-size: 11px;
-      transition: all 0.15s;
-    }
     .window-btn:hover {
       color: var(--text-bright);
       border-color: var(--neon-cyan);
@@ -288,7 +279,7 @@
 
     .cal-weekdays {
       display: grid;
-      grid-template-columns: repeat(7, 1fr);
+      grid-template-columns: repeat(7, minmax(0, 1fr));
       background: rgba(20, 22, 34, 0.9);
       border-bottom: 1px solid var(--border-dim);
       font-size: 11px;
@@ -301,8 +292,8 @@
     .cal-grid {
       flex: 1;
       display: grid;
-      grid-template-columns: repeat(7, 1fr);
-      grid-auto-rows: 1fr;
+      grid-template-columns: repeat(7, minmax(0, 1fr));
+      grid-auto-rows: minmax(80px, 1fr);
       overflow-y: auto;
       gap: 1px;
       background: rgba(30, 33, 50, 0.4);
@@ -313,7 +304,9 @@
       padding: 4px;
       display: flex;
       flex-direction: column;
+      min-width: 0;
       min-height: 80px;
+      overflow: hidden;
       position: relative;
       transition: background 0.15s;
       border-top: 1px solid rgba(255, 255, 255, 0.02);
@@ -349,7 +342,10 @@
       display: flex;
       flex-direction: column;
       gap: 3px;
+      min-width: 0;
+      width: 100%;
       overflow-y: auto;
+      overflow-x: hidden;
       flex: 1;
     }
 
@@ -359,9 +355,9 @@
       border-radius: 3px;
       font-size: 10px;
       cursor: pointer;
-      display: flex;
-      align-items: center;
-      gap: 4px;
+      display: block;
+      width: 100%;
+      max-width: 100%;
       border-left: 2px solid;
       background: rgba(25, 28, 44, 0.9);
       transition: transform 0.1s, box-shadow 0.1s;
