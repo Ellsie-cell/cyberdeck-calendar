@@ -78,22 +78,8 @@ def load_local_ops_events() -> List[Dict[str, Any]]:
     CYBERDECK_CONFIG_DIR.mkdir(parents=True, exist_ok=True)
     target_path = get_ops_events_path()
     if not target_path.exists():
-        # Initialize with sample starter events
-        today_str = datetime.date.today().isoformat()
-        sample_events = [
-            {
-                "id": "ops-1",
-                "title": "Cyberdeck Systems & Kernel Check",
-                "start": f"{today_str}T09:00:00",
-                "end": f"{today_str}T10:00:00",
-                "category": "maintenance",
-                "notes": "Verify SHA-256 cryptographic baselines and firewall telemetry.",
-                "badge": "[● OPS // MAINTENANCE]",
-                "source": "ops"
-            }
-        ]
-        save_local_ops_events(sample_events)
-        return sample_events
+        save_local_ops_events([])
+        return []
     try:
         with open(target_path, "r", encoding="utf-8") as f:
             return json.load(f)
@@ -289,13 +275,7 @@ def fetch_aura_crm_events() -> List[Dict[str, Any]]:
             # Schedule dates: look for follow_up, meeting, milestone, or updated_at
             event_date = node.get("follow_up_date") or node.get("target_date")
             if not event_date:
-                # Include contacts, companion sync, or partner milestones
-                if category in ("client", "business", "partner", "lead", "companion", "core"):
-                    day_offset = (nid * 7 + 3) % 27 + 1
-                    target_d = today.replace(day=1) + datetime.timedelta(days=day_offset)
-                    event_date = target_d.isoformat()
-                else:
-                    continue
+                continue
 
             # Dual-Layer Privacy Object
             events.append({
