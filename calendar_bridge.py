@@ -30,6 +30,7 @@ LOCKBOX_VAULT = LOCKBOX_DIR / "My 🔒︎Aura Social/Vault"
 CONTENT_CALENDARS_DIR = LOCKBOX_DIR / "My 🔒︎Aura Social/➖My Work/🔵CONTENT & ASSETS/🔵Content Calendars"
 STUDIO_ALPHA_DIR = CONTENT_CALENDARS_DIR / "Studio Alpha"
 STUDIO_NOIR_DIR = CONTENT_CALENDARS_DIR / "Studio Noir"
+MAY_DB_PATH = LOCKBOX_DIR / "May/data/may.db"
 
 HANA_CONFIG_DIR = Path.home() / ".config/hana"
 CYBERDECK_CONFIG_DIR = Path.home() / ".config/cyberdeck"
@@ -397,6 +398,84 @@ def fetch_aura_tprm_events() -> List[Dict[str, Any]]:
 
     return events
 
+def fetch_may_reminders() -> List[Dict[str, Any]]:
+    """
+    Ingests vehicle maintenance, inspection, and service reminders from
+    May fleet database (/run/media/ellsie/Lockbox/May/data/may.db) in strictly READ-ONLY mode.
+    """
+    events = []
+    if not MAY_DB_PATH.exists():
+        return events
+
+    try:
+        conn = sqlite3.connect(str(MAY_DB_PATH))
+        conn.row_factory = sqlite3.Row
+        c = conn.cursor()
+
+        # Check if reminders and vehicles tables exist
+        c.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='reminders'")
+        if not c.fetchone():
+            conn.close()
+            return events
+
+        c.execute("""
+            SELECT r.id, r.vehicle_id, r.user_id, r.title, r.description, r.reminder_type, r.due_date,
+                   r.is_completed, v.name as vehicle_name, v.make, v.model, v.year, v.registration
+            FROM reminders r
+            LEFT JOIN vehicles v ON r.vehicle_id = v.id
+            WHERE r.is_completed IS NOT 1
+            ORDER BY r.due_date ASC
+        """)
+        rows = c.fetchall()
+
+        type_labels = {
+            'oil_change': 'OIL SERVICE',
+            'service': 'SERVICE DUE',
+            'mot': 'INSPECTION / MOT',
+            'insurance': 'INSURANCE',
+            'tax': 'ROAD TAX',
+            'registration': 'REGISTRATION',
+            'warranty': 'WARRANTY',
+            'tire_change': 'TIRE SERVICE',
+            'custom': 'CUSTOM'
+        }
+
+        for r in rows:
+            rem_type = (r['reminder_type'] or 'service').lower()
+            type_label = type_labels.get(rem_type, rem_type.upper())
+            veh_name = r['vehicle_name'] or f"{r['year'] or ''} {r['make'] or ''} {r['model'] or ''}".strip() or "Fleet Vehicle"
+            due_str = str(r['due_date'])
+
+            events.append({
+                "id": f"may-{r['id']}",
+                "source": "may",
+                "category": rem_type,
+                "badge": f"[⛐ MAY // {type_label}]",
+                "glance_title": f"[⛐ MAY // {type_label}]",
+                "full_title": f"[⛐ MAY] {r['title']} ({veh_name})",
+                "start": due_str,
+                "end": due_str,
+                "allDay": True,
+                "counterparty": veh_name,
+                "organization": "May Sovereign Fleet",
+                "role": f"Plate: {r['registration'] or 'N/A'}",
+                "notes": r['description'] or "Scheduled vehicle maintenance / compliance milestone.",
+                "deep_link": "http://localhost:5050/reminders",
+                "icon_type": rem_type,
+                "color_scheme": {
+                    "primary": "#00e5ff",
+                    "accent": "#7aa2f7",
+                    "bg": "rgba(0, 229, 255, 0.16)",
+                    "border": "#00e5ff"
+                }
+            })
+
+        conn.close()
+    except Exception as e:
+        print(f"[Calendar Bridge] May Fleet Ingestion notice: {e}", file=sys.stderr)
+
+    return events
+
 def get_all_calendar_events(glance_mode: bool = False) -> Dict[str, Any]:
     """
     Compiles all non-overlapping calendar streams with telemetry status.
@@ -407,6 +486,7 @@ def get_all_calendar_events(glance_mode: bool = False) -> Dict[str, Any]:
     ops_events = load_local_ops_events()
     alpha_events = fetch_studio_alpha_events()
     noir_events = fetch_studio_noir_events()
+    may_events = fetch_may_reminders()
 
     # Format local ops events with color scheme
     formatted_ops = []
@@ -422,7 +502,7 @@ def get_all_calendar_events(glance_mode: bool = False) -> Dict[str, Any]:
         }
         formatted_ops.append(item)
 
-    all_events = crm_events + tprm_events + formatted_ops + alpha_events + noir_events
+    all_events = crm_events + tprm_events + formatted_ops + alpha_events + noir_events + may_events
 
     # If glance_mode is requested, sanitize titles for visual glance privacy
     if glance_mode:
@@ -443,7 +523,8 @@ def get_all_calendar_events(glance_mode: bool = False) -> Dict[str, Any]:
             "tprm": len(tprm_events),
             "ops": len(formatted_ops),
             "alpha": len(alpha_events),
-            "noir": len(noir_events)
+            "noir": len(noir_events),
+            "may": len(may_events)
         },
         "events": all_events
     }

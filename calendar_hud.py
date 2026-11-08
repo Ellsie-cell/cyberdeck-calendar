@@ -233,6 +233,10 @@ class CalendarHUDWindow(Gtk.Window):
                 cmd = [str(tprm_bin)] if tprm_bin.exists() else ["python3", str(Path.home() / "Projects/aura-tprm/tprm_gui.py")]
                 subprocess.Popen(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, start_new_session=True)
 
+            elif action == "launch_may":
+                url = payload.get("url", "http://localhost:5050/reminders")
+                subprocess.Popen(["xdg-open", url], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, start_new_session=True)
+
             elif action == "add_ops_event":
                 new_ev = {
                     "title": payload.get("title"),
