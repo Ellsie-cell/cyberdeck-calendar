@@ -103,6 +103,7 @@ class CalendarHUDWindow(Gtk.Window):
         self.webview = WebKit2.WebView.new_with_user_content_manager(content_manager)
         self.webview.set_settings(settings)
         self.webview.set_background_color(Gdk.RGBA(0, 0, 0, 0))
+        self.webview.connect("context-menu", self.on_context_menu)
 
         self.add(self.webview)
         self.webview.load_uri(INDEX_HTML.as_uri())
@@ -111,6 +112,10 @@ class CalendarHUDWindow(Gtk.Window):
         self._geom_save_timer = None
         self.connect("delete-event", self.on_delete_event)
         self.connect("configure-event", self.on_configure_event)
+
+    def on_context_menu(self, webview, context_menu, event, hit_test_result):
+        """Cancels default WebKit context menu so custom in-page cyberpunk menu handles it."""
+        return True
 
     def load_geometry(self):
         """Restores saved window geometry."""
@@ -237,6 +242,11 @@ class CalendarHUDWindow(Gtk.Window):
                 url = payload.get("url", "http://localhost:5050/reminders")
                 subprocess.Popen(["xdg-open", url], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, start_new_session=True)
 
+            elif action == "add_may_reminder":
+                res = calendar_bridge.add_may_reminder(payload)
+                if res:
+                    self.notify_user("May Fleet Reminder", f"Scheduled: {payload.get('title')}")
+
             elif action == "add_ops_event":
                 new_ev = {
                     "title": payload.get("title"),
@@ -325,6 +335,9 @@ class CalendarHUDWindow(Gtk.Window):
             elif action == "close":
                 self.save_geometry()
                 self.hide()
+
+            elif action == "notify":
+                self.notify_user(payload.get("title", "Cyberdeck Calendar"), payload.get("message", ""))
 
         except Exception as e:
             print(f"[Calendar IPC Error] {e}", file=sys.stderr)

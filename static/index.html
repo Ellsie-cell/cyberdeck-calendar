@@ -725,6 +725,134 @@
       outline: none;
       border-color: var(--neon-cyan);
     }
+
+    /* Cyberdeck Custom Context Menu */
+    .cyber-context-menu {
+      position: fixed;
+      z-index: 999999;
+      min-width: 250px;
+      max-width: 320px;
+      background: rgba(13, 15, 24, 0.96);
+      backdrop-filter: blur(18px);
+      -webkit-backdrop-filter: blur(18px);
+      border: 1px solid var(--border-glow);
+      border-radius: 8px;
+      padding: 6px 0;
+      box-shadow: 0 12px 36px rgba(0, 0, 0, 0.85), 0 0 18px rgba(187, 154, 247, 0.2);
+      font-family: var(--font-mono);
+      font-size: 11px;
+      color: var(--text-main);
+      display: none;
+      opacity: 0;
+      transform: scale(0.95);
+      transition: opacity 0.12s cubic-bezier(0.16, 1, 0.3, 1), transform 0.12s cubic-bezier(0.16, 1, 0.3, 1);
+      user-select: none;
+    }
+
+    .cyber-context-menu.open {
+      display: block;
+      opacity: 1;
+      transform: scale(1);
+    }
+
+    .context-header {
+      padding: 6px 12px;
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.6px;
+      color: var(--neon-cyan);
+      border-bottom: 1px solid var(--border-dim);
+      margin-bottom: 4px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .context-badge {
+      font-size: 9px;
+      color: var(--neon-purple);
+      font-weight: 600;
+    }
+
+    .context-item {
+      padding: 7px 12px;
+      display: flex;
+      align-items: center;
+      gap: 9px;
+      cursor: pointer;
+      transition: background 0.12s ease, color 0.12s ease;
+      color: var(--text-main);
+      font-size: 11px;
+    }
+
+    .context-item:hover {
+      background: rgba(187, 154, 247, 0.18);
+      color: var(--text-bright);
+    }
+
+    .context-item.danger:hover {
+      background: rgba(247, 118, 142, 0.22);
+      color: var(--neon-red);
+    }
+
+    .context-item svg {
+      flex-shrink: 0;
+      color: var(--neon-cyan);
+    }
+
+    .context-item:hover svg {
+      color: var(--text-bright);
+    }
+
+    .context-divider {
+      height: 1px;
+      background: var(--border-dim);
+      margin: 4px 0;
+    }
+
+    /* Live Stream Count & Toast */
+    .stream-count-pill {
+      font-size: 10px;
+      font-weight: 700;
+      opacity: 0.9;
+      margin-left: 3px;
+    }
+
+    .badge-pill.empty-stream {
+      opacity: 0.65;
+    }
+
+    .badge-pill.empty-stream:hover {
+      opacity: 1;
+    }
+
+    .hud-toast {
+      position: fixed;
+      bottom: 24px;
+      left: 50%;
+      transform: translateX(-50%) translateY(20px);
+      background: rgba(15, 17, 28, 0.96);
+      border: 1px solid var(--neon-cyan);
+      color: var(--neon-cyan);
+      font-family: var(--font-mono);
+      font-size: 11px;
+      padding: 9px 18px;
+      border-radius: 6px;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.8), 0 0 12px rgba(125, 207, 255, 0.25);
+      z-index: 9999999;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.2s ease, transform 0.2s ease;
+      text-align: center;
+      max-width: 480px;
+      white-space: pre-line;
+    }
+
+    .hud-toast.show {
+      opacity: 1;
+      transform: translateX(-50%) translateY(0);
+    }
   </style>
 </head>
 <body>
@@ -1023,10 +1151,71 @@
     postToBackend('fetch_events', { glance_mode: false });
   }
 
+  function showHudToast(msg) {
+    let toast = document.getElementById('hudToast');
+    if (!toast) {
+      toast = document.createElement('div');
+      toast.id = 'hudToast';
+      toast.className = 'hud-toast';
+      document.body.appendChild(toast);
+    }
+    toast.textContent = msg;
+    toast.classList.add('show');
+    clearTimeout(window._toastTimeout);
+    window._toastTimeout = setTimeout(() => {
+      toast.classList.remove('show');
+    }, 3200);
+  }
+
+  function updateStreamBadges(counts) {
+    const streamMeta = [
+      { key: 'crm', label: 'CRM', icon: 'crm' },
+      { key: 'tprm', label: 'TPRM', icon: 'tprm' },
+      { key: 'ops', label: 'OPS', icon: 'ops' },
+      { key: 'alpha', label: 'ALPHA', icon: 'alpha' },
+      { key: 'noir', label: 'NOIR', icon: 'noir' },
+      { key: 'may', label: 'MAY FLEET', icon: 'may' }
+    ];
+
+    streamMeta.forEach(s => {
+      const btn = document.getElementById(s.key + 'FilterBtn');
+      if (!btn) return;
+      const count = (counts && counts[s.key] !== undefined) ? counts[s.key] : allEvents.filter(e => e.source === s.key).length;
+      const iconSvg = CUSTOM_ICONS[s.icon] || '';
+      btn.innerHTML = `<span class="badge-icon">${iconSvg}</span> ${s.label} <span class="stream-count-pill">(${count})</span>`;
+      btn.title = `${s.label}: ${count} event${count === 1 ? '' : 's'} scheduled\n• Left-Click: Toggle stream filter\n• Right-Click: Schedule new event in ${s.label}`;
+      btn.classList.toggle('empty-stream', count === 0);
+
+      btn.oncontextmenu = (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        openNewTaskForStream(s.key);
+      };
+    });
+  }
+
+  function openNewTaskForStream(stream) {
+    const sel = document.getElementById('newTaskStream');
+    if (sel) {
+      for (let i = 0; i < sel.options.length; i++) {
+        if (sel.options[i].value === stream) {
+          sel.selectedIndex = i;
+          break;
+        }
+      }
+    }
+    if (!document.getElementById('newTaskDate').value) {
+      document.getElementById('newTaskDate').value = new Date().toISOString().split('T')[0];
+    }
+    openNewTaskModal();
+    showHudToast(`[+] Scheduling new event for stream: [${stream.toUpperCase()}]`);
+  }
+
   // Called from Python when events arrive
   function onEventsLoaded(data) {
     allEvents = data.events || [];
     render();
+    updateStreamBadges(data.counts || {});
   }
 
   function toggleStreamFilter(stream) {
@@ -1034,6 +1223,14 @@
     const btn = document.getElementById(stream + 'FilterBtn');
     btn.classList.toggle('active-' + stream, filterStreams[stream]);
     render();
+
+    const count = allEvents.filter(e => e.source === stream).length;
+    if (count === 0 && filterStreams[stream]) {
+      showHudToast(`[${stream.toUpperCase()}] stream filter enabled, but it currently has 0 scheduled events.\nRight-Click this badge or click [+ NEW TASK] to place an event!`);
+    } else {
+      const stateStr = filterStreams[stream] ? "VISIBLE" : "HIDDEN";
+      showHudToast(`[${stream.toUpperCase()}] stream: ${stateStr} (${count} events)`);
+    }
   }
 
   function switchView(view) {
@@ -1098,7 +1295,9 @@
     // Previous month filler cells
     for (let i = firstDay - 1; i >= 0; i--) {
       const dayNum = daysInPrevMonth - i;
-      grid.appendChild(createCell(dayNum, true));
+      const prevDate = new Date(year, month - 1, dayNum);
+      const prevDateStr = `${prevDate.getFullYear()}-${String(prevDate.getMonth() + 1).padStart(2, '0')}-${String(dayNum).padStart(2, '0')}`;
+      grid.appendChild(createCell(dayNum, true, false, [], prevDateStr));
     }
 
     // Current month cells
@@ -1113,13 +1312,18 @@
     const totalRendered = firstDay + daysInMonth;
     const remaining = (7 - (totalRendered % 7)) % 7;
     for (let day = 1; day <= remaining; day++) {
-      grid.appendChild(createCell(day, true));
+      const nextDate = new Date(year, month + 1, day);
+      const nextDateStr = `${nextDate.getFullYear()}-${String(nextDate.getMonth() + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+      grid.appendChild(createCell(day, true, false, [], nextDateStr));
     }
   }
 
   function createCell(num, isOtherMonth, isToday = false, events = [], dateStr = '') {
     const cell = document.createElement('div');
     cell.className = 'cal-cell' + (isOtherMonth ? ' other-month' : '') + (isToday ? ' today' : '');
+    if (dateStr) {
+      cell.dataset.date = dateStr;
+    }
 
     const header = document.createElement('div');
     header.className = 'cell-header';
@@ -1132,9 +1336,11 @@
     events.forEach(ev => {
       const chip = document.createElement('div');
       chip.className = `event-chip ${ev.source}`;
+      chip.dataset.eventId = ev.id || '';
       
       const labelText = ev.display_title || ev.full_title || ev.title || ev.glance_title || "Event";
       chip.title = labelText;
+      chip.dataset.eventTitle = labelText;
       const iconSvg = getEventIcon(ev, 11);
       chip.innerHTML = `<span class="chip-content">${iconSvg}<span class="chip-text">${escapeHtml(labelText)}</span></span>`;
 
@@ -1427,7 +1633,13 @@
         category: (stream === 'alpha') ? "shoot" : "production"
       });
     } else if (stream === 'may') {
-      postToBackend('launch_may', { url: 'http://localhost:5050/reminders/new' });
+      postToBackend('add_may_reminder', {
+        title,
+        start: date,
+        end: date,
+        notes,
+        category: "service"
+      });
     } else {
       postToBackend('add_ops_event', {
         title,
@@ -1479,6 +1691,267 @@
   window.addEventListener('DOMContentLoaded', () => {
     reloadData();
   });
+
+  // --- Cyberdeck Custom Right-Click Context Menu ---
+  const contextMenu = document.getElementById('cyberContextMenu');
+  const contextMenuTitle = document.getElementById('contextMenuTitle');
+  const contextMenuBadge = document.getElementById('contextMenuBadge');
+  const contextMenuItems = document.getElementById('contextMenuItems');
+
+  function hideContextMenu() {
+    if (contextMenu) {
+      contextMenu.classList.remove('open');
+      contextMenu.style.display = 'none';
+    }
+  }
+
+  window.addEventListener('click', () => hideContextMenu());
+  window.addEventListener('scroll', () => hideContextMenu(), true);
+  window.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') hideContextMenu();
+  });
+
+  window.addEventListener('contextmenu', (e) => {
+    e.preventDefault();
+    showCyberContextMenu(e);
+  });
+
+  function showCyberContextMenu(e) {
+    if (!contextMenu) return;
+
+    const eventChip = e.target.closest('.event-chip');
+    const agendaCard = e.target.closest('.agenda-card');
+    const calCell = e.target.closest('.cal-cell');
+
+    let itemsHtml = '';
+
+    if (eventChip || agendaCard) {
+      const targetElem = eventChip || agendaCard;
+      const chipTitle = targetElem.dataset.eventTitle || targetElem.title || targetElem.innerText.trim();
+      const chipId = targetElem.dataset.eventId;
+      const ev = allEvents.find(x => (chipId && String(x.id) === String(chipId)) || x.display_title === chipTitle || x.title === chipTitle || x.full_title === chipTitle) || null;
+
+      const rawTitle = ev ? (ev.title || ev.full_title || ev.display_title || 'EVENT') : 'EVENT';
+      contextMenuTitle.textContent = rawTitle.length > 24 ? rawTitle.slice(0, 24) + '...' : rawTitle;
+      contextMenuBadge.textContent = ev ? `[${(ev.source || 'EVENT').toUpperCase()}]` : '[EVENT]';
+
+      itemsHtml += `
+        <div class="context-item" onclick="onContextOpenDrawer()">
+          <svg class="stream-svg-icon" viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          <span>View Deep Dossier / Details</span>
+        </div>
+        <div class="context-item" onclick="onContextEditEvent()">
+          <svg class="stream-svg-icon" viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+          <span>Edit Event / Schedule</span>
+        </div>
+        <div class="context-item" onclick="onContextCopyEvent()">
+          <svg class="stream-svg-icon" viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+          <span>Copy Event Summary</span>
+        </div>
+        <div class="context-item" onclick="onContextExportSingleIcs()">
+          <svg class="stream-svg-icon" viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          <span>Export Event to Proton (.ics)</span>
+        </div>
+      `;
+
+      if (ev && (ev.source === 'ops' || ev.source === 'alpha' || ev.source === 'noir' || ev.source === 'may')) {
+        itemsHtml += `
+          <div class="context-divider"></div>
+          <div class="context-item danger" onclick="onContextDeleteEvent()">
+            <svg class="stream-svg-icon" viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="var(--neon-red)" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+            <span>Delete Event</span>
+          </div>
+        `;
+      }
+
+      window._activeContextEvent = ev;
+    } else if (calCell) {
+      const cellNum = calCell.querySelector('.cell-num')?.textContent?.trim() || '';
+      let dateStr = calCell.dataset.date;
+      if (!dateStr) {
+        const y = currentDate.getFullYear();
+        const m = String(currentDate.getMonth() + 1).padStart(2, '0');
+        const d = String(cellNum).padStart(2, '0');
+        dateStr = `${y}-${m}-${d}`;
+      }
+      window._activeContextDate = dateStr;
+
+      contextMenuTitle.textContent = `DATE // ${dateStr}`;
+      contextMenuBadge.textContent = '[CAL-DAY]';
+
+      itemsHtml += `
+        <div class="context-item" onclick="onContextScheduleOnDate('ops')">
+          <svg class="stream-svg-icon" viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          <span>Schedule Task on ${dateStr}</span>
+        </div>
+        <div class="context-item" onclick="onContextScheduleOnDate('alpha')">
+          <svg class="stream-svg-icon" viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="var(--neon-cyan)" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/></svg>
+          <span>New Studio Alpha Shoot</span>
+        </div>
+        <div class="context-item" onclick="onContextScheduleOnDate('noir')">
+          <svg class="stream-svg-icon" viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="var(--neon-purple)" stroke-width="2"><rect x="2" y="2" width="20" height="20" rx="2.18" ry="2.18"/><line x1="7" y1="2" x2="7" y2="22"/><line x1="17" y1="2" x2="17" y2="22"/><line x1="2" y1="12" x2="22" y2="12"/></svg>
+          <span>New Studio Noir Production</span>
+        </div>
+        <div class="context-item" onclick="onContextScheduleOnDate('may')">
+          <svg class="stream-svg-icon" viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="var(--neon-amber)" stroke-width="2"><path d="M2 13.5L4 8h16l2 5.5v4.5a1 1 0 0 1-1 1h-1.5a2.5 2.5 0 0 1-5 0h-5a2.5 2.5 0 0 1-5 0H3a1 1 0 0 1-1-1v-4.5z"/></svg>
+          <span>New May Fleet Reminder</span>
+        </div>
+        <div class="context-divider"></div>
+        <div class="context-item" onclick="reloadData(); hideContextMenu();">
+          <svg class="stream-svg-icon" viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+          <span>Re-Sync All Streams (Aura, TPRM, May)</span>
+        </div>
+        <div class="context-item" onclick="goToToday(); hideContextMenu();">
+          <svg class="stream-svg-icon" viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 14 14"/></svg>
+          <span>Jump to Today</span>
+        </div>
+        <div class="context-item" onclick="triggerProtonExport(); hideContextMenu();">
+          <svg class="stream-svg-icon" viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          <span>Export Month to Proton (.ics)</span>
+        </div>
+        <div class="context-divider"></div>
+        <div class="context-item" onclick="launchAuraCrm(); hideContextMenu();">
+          <svg class="stream-svg-icon" viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="var(--crm-color)" stroke-width="2"><polygon points="12,2 22,12 12,22 2,12"/></svg>
+          <span>Launch Aura CRM</span>
+        </div>
+        <div class="context-item" onclick="launchAuraTprm(); hideContextMenu();">
+          <svg class="stream-svg-icon" viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="var(--tprm-color)" stroke-width="2"><polygon points="12,2 21,7 21,17 12,22 3,17 3,7"/></svg>
+          <span>Launch Aura TPRM</span>
+        </div>
+        <div class="context-item" onclick="launchMayFleet(); hideContextMenu();">
+          <svg class="stream-svg-icon" viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="var(--neon-green)" stroke-width="2"><path d="M2 13.5L4 8h16l2 5.5v4.5a1 1 0 0 1-1 1h-1.5a2.5 2.5 0 0 1-5 0h-5a2.5 2.5 0 0 1-5 0H3a1 1 0 0 1-1-1v-4.5z"/></svg>
+          <span>Launch May Fleet Manager</span>
+        </div>
+      `;
+    } else {
+      contextMenuTitle.textContent = 'CYBERDECK // CALENDAR';
+      contextMenuBadge.textContent = '[HUD]';
+
+      itemsHtml += `
+        <div class="context-item" onclick="openNewTaskModal(); hideContextMenu();">
+          <svg class="stream-svg-icon" viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          <span>Schedule New Event / Shoot</span>
+        </div>
+        <div class="context-item" onclick="reloadData(); hideContextMenu();">
+          <svg class="stream-svg-icon" viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+          <span>Re-Sync All Streams (Aura, TPRM, May)</span>
+        </div>
+        <div class="context-item" onclick="goToToday(); hideContextMenu();">
+          <svg class="stream-svg-icon" viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 14 14"/></svg>
+          <span>Jump to Today</span>
+        </div>
+        <div class="context-item" onclick="triggerProtonExport(); hideContextMenu();">
+          <svg class="stream-svg-icon" viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          <span>Export All to Proton (.ics)</span>
+        </div>
+        <div class="context-divider"></div>
+        <div class="context-item" onclick="launchAuraCrm(); hideContextMenu();">
+          <svg class="stream-svg-icon" viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="var(--crm-color)" stroke-width="2"><polygon points="12,2 22,12 12,22 2,12"/></svg>
+          <span>Launch Aura CRM</span>
+        </div>
+        <div class="context-item" onclick="launchAuraTprm(); hideContextMenu();">
+          <svg class="stream-svg-icon" viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="var(--tprm-color)" stroke-width="2"><polygon points="12,2 21,7 21,17 12,22 3,17 3,7"/></svg>
+          <span>Launch Aura TPRM</span>
+        </div>
+        <div class="context-item" onclick="launchMayFleet(); hideContextMenu();">
+          <svg class="stream-svg-icon" viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="var(--neon-green)" stroke-width="2"><path d="M2 13.5L4 8h16l2 5.5v4.5a1 1 0 0 1-1 1h-1.5a2.5 2.5 0 0 1-5 0h-5a2.5 2.5 0 0 1-5 0H3a1 1 0 0 1-1-1v-4.5z"/></svg>
+          <span>Launch May Fleet Manager</span>
+        </div>
+      `;
+    }
+
+    itemsHtml += `
+      <div class="context-divider"></div>
+      <div class="context-item" onclick="postToBackend('close'); hideContextMenu();">
+        <svg class="stream-svg-icon" viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="var(--text-muted)" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        <span>Minimize / Hide HUD</span>
+      </div>
+    `;
+
+    contextMenuItems.innerHTML = itemsHtml;
+
+    contextMenu.style.display = 'block';
+    const menuWidth = contextMenu.offsetWidth || 260;
+    const menuHeight = contextMenu.offsetHeight || 320;
+
+    let posX = e.clientX;
+    let posY = e.clientY;
+
+    if (posX + menuWidth > window.innerWidth - 10) {
+      posX = window.innerWidth - menuWidth - 10;
+    }
+    if (posY + menuHeight > window.innerHeight - 10) {
+      posY = window.innerHeight - menuHeight - 10;
+    }
+
+    contextMenu.style.left = `${Math.max(10, posX)}px`;
+    contextMenu.style.top = `${Math.max(10, posY)}px`;
+    contextMenu.classList.add('open');
+  }
+
+  function onContextScheduleOnDate(stream) {
+    hideContextMenu();
+    const dateStr = window._activeContextDate || new Date().toISOString().split('T')[0];
+    document.getElementById('newTaskDate').value = dateStr;
+    const sel = document.getElementById('newTaskStream');
+    if (sel) {
+      for (let i = 0; i < sel.options.length; i++) {
+        if (sel.options[i].value === stream) {
+          sel.selectedIndex = i;
+          break;
+        }
+      }
+    }
+    openNewTaskModal();
+  }
+
+  function onContextOpenDrawer() {
+    hideContextMenu();
+    if (window._activeContextEvent) {
+      openDrawer(window._activeContextEvent);
+    }
+  }
+
+  function onContextEditEvent() {
+    hideContextMenu();
+    if (window._activeContextEvent) {
+      openEditEventModal(window._activeContextEvent);
+    }
+  }
+
+  function onContextCopyEvent() {
+    hideContextMenu();
+    if (window._activeContextEvent) {
+      const ev = window._activeContextEvent;
+      const text = `${ev.full_title || ev.title || 'Event'} [${ev.start || ''}] - ${ev.source || ''}`;
+      navigator.clipboard.writeText(text).catch(() => {});
+      postToBackend('notify', { title: "Copied to Clipboard", message: text });
+    }
+  }
+
+  function onContextExportSingleIcs() {
+    hideContextMenu();
+    if (window._activeContextEvent) {
+      exportCurrentEventIcs(window._activeContextEvent);
+    }
+  }
+
+  function onContextDeleteEvent() {
+    hideContextMenu();
+    if (window._activeContextEvent) {
+      confirmDeleteCurrentEvent(window._activeContextEvent);
+    }
+  }
 </script>
+
+<!-- Cyberdeck Custom Cyber-Glass Context Menu -->
+<div id="cyberContextMenu" class="cyber-context-menu">
+  <div id="contextMenuHeader" class="context-header">
+    <span id="contextMenuTitle">CYBERDECK // CALENDAR</span>
+    <span id="contextMenuBadge" class="context-badge">[HUD]</span>
+  </div>
+  <div id="contextMenuItems" class="context-items-box"></div>
+</div>
+
 </body>
 </html>

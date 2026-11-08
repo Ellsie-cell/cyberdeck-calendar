@@ -314,9 +314,11 @@ def fetch_aura_crm_events() -> List[Dict[str, Any]]:
                 "id": f"crm-{nid}",
                 "source": "crm",
                 "category": category,
+                "title": name,
+                "display_title": f"{name} ({org or role})" if (org or role) else name,
                 "badge": f"[◈ CRM // {category.upper()}]",
                 "glance_title": f"[◈ CRM // {category.upper()}]",
-                "full_title": f"[◈ CRM] {name} ({org or role})",
+                "full_title": f"[◈ CRM] {name} ({org or role})" if (org or role) else f"[◈ CRM] {name}",
                 "start": event_date,
                 "end": event_date,
                 "allDay": True,
@@ -383,6 +385,8 @@ def fetch_aura_tprm_events() -> List[Dict[str, Any]]:
                         "id": f"tprm-{cid}-{idx}",
                         "source": "tprm",
                         "category": "contract",
+                        "title": m_title,
+                        "display_title": f"{handle} — {m_title}",
                         "badge": f"[⏣ TPRM // {risk_tier}]",
                         "glance_title": f"[⏣ TPRM // DELIVERABLE]",
                         "full_title": f"[⏣ TPRM] {handle} — {m_title}",
@@ -462,6 +466,8 @@ def fetch_may_reminders() -> List[Dict[str, Any]]:
                 "id": f"may-{r['id']}",
                 "source": "may",
                 "category": rem_type,
+                "title": r['title'],
+                "display_title": f"{r['title']} ({veh_name})",
                 "badge": f"[⛐ MAY // {type_label}]",
                 "glance_title": f"[⛐ MAY // {type_label}]",
                 "full_title": f"[⛐ MAY] {r['title']} ({veh_name})",
@@ -540,6 +546,35 @@ def update_may_reminder(reminder_id: int, updated_data: Dict[str, Any]) -> bool:
     except Exception as e:
         print(f"[Calendar Bridge] May Update error: {e}", file=sys.stderr)
         return False
+
+def add_may_reminder(reminder_data: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    """Inserts a new maintenance reminder into May fleet database."""
+    if not MAY_DB_PATH.exists():
+        return None
+    try:
+        conn = sqlite3.connect(str(MAY_DB_PATH))
+        with conn:
+            c = conn.cursor()
+            veh_id = reminder_data.get("vehicle_id", 1)
+            title = reminder_data.get("title", "Maintenance Reminder")
+            desc = reminder_data.get("notes", "")
+            rem_type = reminder_data.get("category", "service")
+            due_date = reminder_data.get("start", datetime.date.today().isoformat())
+            c.execute("""
+                INSERT INTO reminders (
+                    vehicle_id, user_id, title, description, reminder_type, due_date,
+                    recurrence, recurrence_interval, notify_days_before, notification_sent,
+                    is_completed, created_at, updated_at
+                ) VALUES (?, ?, ?, ?, ?, ?, 'none', 1, 7, 0, 0, datetime('now'), datetime('now'))
+            """, (veh_id, 2, title, desc, rem_type, due_date))
+            new_id = c.lastrowid
+        conn.close()
+        reminder_data["id"] = f"may-{new_id}"
+        reminder_data["source"] = "may"
+        return reminder_data
+    except Exception as e:
+        print(f"[Calendar Bridge] May Add error: {e}", file=sys.stderr)
+        return None
 
 def get_all_calendar_events(glance_mode: bool = False) -> Dict[str, Any]:
     """
