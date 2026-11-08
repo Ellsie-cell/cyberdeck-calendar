@@ -616,6 +616,82 @@
       background: rgba(247, 118, 142, 0.1);
     }
 
+    /* Actions Dropdown in Drawer */
+    .actions-dropdown-container {
+      position: relative;
+      display: inline-block;
+    }
+    .actions-dropdown-btn {
+      padding: 4px 8px;
+      border-radius: 4px;
+      border: 1px solid var(--neon-cyan);
+      background: rgba(125, 207, 255, 0.1);
+      color: var(--neon-cyan);
+      font-family: var(--font-mono);
+      font-size: 11px;
+      font-weight: 700;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      transition: all 0.2s;
+    }
+    .actions-dropdown-btn:hover {
+      background: rgba(125, 207, 255, 0.22);
+      box-shadow: 0 0 10px rgba(125, 207, 255, 0.3);
+    }
+    .actions-dropdown-menu {
+      position: absolute;
+      top: calc(100% + 6px);
+      right: 0;
+      min-width: 190px;
+      background: rgba(18, 20, 32, 0.98);
+      border: 1px solid var(--border-glow);
+      border-radius: 6px;
+      box-shadow: 0 4px 24px rgba(0, 0, 0, 0.85), 0 0 12px rgba(125, 207, 255, 0.18);
+      backdrop-filter: blur(12px);
+      padding: 6px;
+      display: none;
+      flex-direction: column;
+      gap: 3px;
+      z-index: 1050;
+    }
+    .actions-dropdown-menu.open {
+      display: flex;
+    }
+    .dropdown-item {
+      padding: 7px 10px;
+      border-radius: 4px;
+      border: none;
+      background: transparent;
+      color: var(--text-bright);
+      font-family: var(--font-mono);
+      font-size: 11px;
+      font-weight: 600;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      text-align: left;
+      transition: all 0.15s;
+    }
+    .dropdown-item:hover {
+      background: rgba(125, 207, 255, 0.12);
+      color: var(--neon-cyan);
+    }
+    .dropdown-item.danger {
+      color: var(--neon-red);
+    }
+    .dropdown-item.danger:hover {
+      background: rgba(247, 118, 142, 0.15);
+      color: #ff5555;
+    }
+    .dropdown-divider {
+      height: 1px;
+      background: var(--border-dim);
+      margin: 4px 0;
+    }
+
     /* Modal for Quick Ops Task */
     .task-modal {
       position: absolute;
@@ -721,7 +797,39 @@
   <div id="workflowDrawer" class="workflow-drawer">
     <div class="drawer-header">
       <span id="drawerStreamBadge" class="drawer-title">[◈ AURA CRM DOSSIER]</span>
-      <button class="drawer-close" onclick="closeDrawer()">[ESC ✕]</button>
+      <div style="display: flex; align-items: center; gap: 8px;">
+        <div class="actions-dropdown-container">
+          <button id="drawerActionsDropdownBtn" class="actions-dropdown-btn" onclick="toggleActionsDropdown(event)" title="Event Actions Menu">
+            <svg class="stream-svg-icon" viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="1.5"/><circle cx="19" cy="12" r="1.5"/><circle cx="5" cy="12" r="1.5"/></svg>
+            <span>ACTIONS</span>
+            <svg class="stream-svg-icon" viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+          </button>
+          <div id="actionsDropdownMenu" class="actions-dropdown-menu">
+            <button id="dropItemEdit" class="dropdown-item" onclick="openEditEventModal()">
+              <svg class="stream-svg-icon" viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+              <span>EDIT EVENT</span>
+            </button>
+            <button id="dropItemDelete" class="dropdown-item danger" onclick="confirmDeleteCurrentEvent()">
+              <svg class="stream-svg-icon" viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>
+              <span>DELETE EVENT</span>
+            </button>
+            <div class="dropdown-divider"></div>
+            <button id="dropItemFolder" class="dropdown-item" onclick="openAssetFolder()">
+              <svg class="stream-svg-icon" viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+              <span>OPEN ASSET FOLDER</span>
+            </button>
+            <button id="dropItemLaunchApp" class="dropdown-item" onclick="launchSourceApp()">
+              <svg class="stream-svg-icon" viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+              <span id="dropItemLaunchAppLabel">OPEN IN APP</span>
+            </button>
+            <button id="dropItemExportIcs" class="dropdown-item" onclick="exportCurrentEventIcs()">
+              <svg class="stream-svg-icon" viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="8 17 12 21 16 17"/><line x1="12" y1="12" x2="12" y2="21"/><path d="M20.88 18.09A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.29"/></svg>
+              <span>EXPORT TO .ICS</span>
+            </button>
+          </div>
+        </div>
+        <button class="drawer-close" onclick="closeDrawer()">[ESC ✕]</button>
+      </div>
     </div>
     <div class="drawer-body">
       <div class="drawer-section">
@@ -746,23 +854,33 @@
       </div>
 
       <div class="drawer-actions">
+        <button id="drawerEditBtn" class="action-btn" style="display: none;" onclick="openEditEventModal()">
+          <svg class="stream-svg-icon" viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+          <span>EDIT EVENT DETAILS</span>
+        </button>
         <button id="drawerOpenFolderBtn" class="action-btn folder" style="display: none;" onclick="openAssetFolder()">
-          <span>[📂]</span> OPEN ASSET FOLDER IN LOCKBOX
+          <svg class="stream-svg-icon" viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+          <span>OPEN ASSET FOLDER IN LOCKBOX</span>
         </button>
         <button id="drawerLaunchCrmBtn" class="action-btn crm" style="display: none;" onclick="launchAuraCrm()">
-          <span>[◈]</span> OPEN IN AURA CRM
+          <svg class="stream-svg-icon" viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12,2 22,12 12,22 2,12"/><circle cx="12" cy="12" r="2.5" fill="currentColor"/></svg>
+          <span>OPEN IN AURA CRM</span>
         </button>
         <button id="drawerLaunchTprmBtn" class="action-btn tprm" style="display: none;" onclick="launchAuraTprm()">
-          <span>[⏣]</span> AUDIT IN AURA TPRM
+          <svg class="stream-svg-icon" viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12,2 21,7 21,17 12,22 3,17 3,7"/><line x1="12" y1="7" x2="12" y2="17"/></svg>
+          <span>AUDIT IN AURA TPRM</span>
         </button>
         <button id="drawerLaunchMayBtn" class="action-btn may" style="display: none;" onclick="launchMayFleet()">
-          <span class="badge-icon"><svg class="stream-svg-icon" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 13.5L4 8h16l2 5.5v4.5a1 1 0 0 1-1 1h-1.5a2.5 2.5 0 0 1-5 0h-5a2.5 2.5 0 0 1-5 0H3a1 1 0 0 1-1-1v-4.5z"/><path d="M5.5 8L7.5 4h9l2 4"/><circle cx="6.5" cy="16.5" r="1.5" fill="currentColor"/><circle cx="17.5" cy="16.5" r="1.5" fill="currentColor"/><line x1="10" y1="12" x2="14" y2="12"/></svg></span> OPEN IN MAY FLEET
+          <svg class="stream-svg-icon" viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 13.5L4 8h16l2 5.5v4.5a1 1 0 0 1-1 1h-1.5a2.5 2.5 0 0 1-5 0h-5a2.5 2.5 0 0 1-5 0H3a1 1 0 0 1-1-1v-4.5z"/><path d="M5.5 8L7.5 4h9l2 4"/><circle cx="6.5" cy="16.5" r="1.5" fill="currentColor"/><circle cx="17.5" cy="16.5" r="1.5" fill="currentColor"/><line x1="10" y1="12" x2="14" y2="12"/></svg>
+          <span>OPEN IN MAY FLEET</span>
         </button>
         <button id="drawerExportIcsBtn" class="action-btn" onclick="exportCurrentEventIcs()">
-          <span>[SYNC]</span> EXPORT THIS EVENT (.ICS)
+          <svg class="stream-svg-icon" viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="8 17 12 21 16 17"/><line x1="12" y1="12" x2="12" y2="21"/><path d="M20.88 18.09A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.29"/></svg>
+          <span>EXPORT THIS EVENT (.ICS)</span>
         </button>
-        <button id="drawerDeleteOpsBtn" class="action-btn delete" style="display: none;" onclick="deleteCurrentOpsEvent()">
-          <span>[✕]</span> DELETE EVENT
+        <button id="drawerDeleteOpsBtn" class="action-btn delete" style="display: none;" onclick="confirmDeleteCurrentEvent()">
+          <svg class="stream-svg-icon" viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>
+          <span>DELETE EVENT</span>
         </button>
       </div>
     </div>
@@ -796,8 +914,50 @@
       <textarea id="newTaskNotes" class="input-field" rows="3" placeholder="Lighting, mood board, or task details..."></textarea>
     </div>
     <div style="display: flex; gap: 8px; margin-top: 6px;">
-      <button class="action-btn" onclick="saveNewTask()">[SAVE EVENT]</button>
+      <button class="action-btn" onclick="saveNewTask()">
+        <svg class="stream-svg-icon" viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+        <span>SAVE EVENT</span>
+      </button>
       <button class="action-btn delete" onclick="closeNewTaskModal()">[CANCEL]</button>
+    </div>
+  </div>
+
+  <!-- Edit Event Modal -->
+  <div id="editModalOverlay" class="drawer-overlay" onclick="closeEditEventModal()"></div>
+  <div id="editEventModal" class="task-modal" style="z-index: 1200;">
+    <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-dim); padding-bottom: 8px; margin-bottom: 6px;">
+      <div style="display: flex; align-items: center; gap: 8px;">
+        <svg class="stream-svg-icon" viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="var(--neon-cyan)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+        <span style="font-weight: 700; color: var(--neon-cyan); letter-spacing: 0.5px;">EDIT CALENDAR EVENT</span>
+      </div>
+      <button class="drawer-close" onclick="closeEditEventModal()">[✕]</button>
+    </div>
+    <div>
+      <span class="drawer-label">STREAM / SOURCE</span>
+      <input id="editEventStream" class="input-field" type="text" readonly style="opacity: 0.8; background: rgba(0,0,0,0.3); color: var(--text-dim);" />
+    </div>
+    <div>
+      <span class="drawer-label">EVENT TITLE</span>
+      <input id="editEventTitle" class="input-field" type="text" placeholder="Event title..." />
+    </div>
+    <div>
+      <span class="drawer-label">DATE / SCHEDULE</span>
+      <input id="editEventDate" class="input-field" type="date" />
+    </div>
+    <div>
+      <span class="drawer-label">CATEGORY / BADGE</span>
+      <input id="editEventCategory" class="input-field" type="text" placeholder="e.g. task, shoot, service..." />
+    </div>
+    <div>
+      <span class="drawer-label">NOTES & DETAILS</span>
+      <textarea id="editEventNotes" class="input-field" rows="3" placeholder="Notes or instructions..."></textarea>
+    </div>
+    <div style="display: flex; gap: 8px; margin-top: 6px;">
+      <button class="action-btn" onclick="saveEditedEvent()">
+        <svg class="stream-svg-icon" viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+        <span>SAVE CHANGES</span>
+      </button>
+      <button class="action-btn delete" onclick="closeEditEventModal()">[CANCEL]</button>
     </div>
   </div>
 </div>
@@ -1065,21 +1225,145 @@
 
     document.getElementById('drawerNotes').innerText = ev.notes || "No additional intelligence recorded.";
 
+    document.getElementById('drawerEditBtn').style.display = (isOps || isAlpha || isNoir || isMay) ? 'flex' : 'none';
     document.getElementById('drawerLaunchCrmBtn').style.display = isCrm ? 'flex' : 'none';
     document.getElementById('drawerLaunchTprmBtn').style.display = isTprm ? 'flex' : 'none';
     document.getElementById('drawerLaunchMayBtn').style.display = isMay ? 'flex' : 'none';
     document.getElementById('drawerOpenFolderBtn').style.display = (ev.asset_folder) ? 'flex' : 'none';
     document.getElementById('drawerExportIcsBtn').style.display = isNoir ? 'none' : 'flex';
-    document.getElementById('drawerDeleteOpsBtn').style.display = (isOps || isAlpha || isNoir) ? 'flex' : 'none';
+    document.getElementById('drawerDeleteOpsBtn').style.display = (isOps || isAlpha || isNoir || isMay) ? 'flex' : 'none';
 
+    // Configure Dropdown Items
+    document.getElementById('dropItemEdit').style.display = (isOps || isAlpha || isNoir || isMay) ? 'flex' : 'none';
+    document.getElementById('dropItemDelete').style.display = (isOps || isAlpha || isNoir || isMay) ? 'flex' : 'none';
+    document.getElementById('dropItemFolder').style.display = (ev.asset_folder) ? 'flex' : 'none';
+    document.getElementById('dropItemExportIcs').style.display = isNoir ? 'none' : 'flex';
+
+    const launchItem = document.getElementById('dropItemLaunchApp');
+    const launchLabel = document.getElementById('dropItemLaunchAppLabel');
+    if (isCrm) {
+      launchItem.style.display = 'flex';
+      launchLabel.innerText = 'OPEN IN AURA CRM';
+    } else if (isTprm) {
+      launchItem.style.display = 'flex';
+      launchLabel.innerText = 'AUDIT IN AURA TPRM';
+    } else if (isMay) {
+      launchItem.style.display = 'flex';
+      launchLabel.innerText = 'OPEN IN MAY FLEET';
+    } else {
+      launchItem.style.display = 'none';
+    }
+
+    closeActionsDropdown();
     document.getElementById('drawerOverlay').classList.add('open');
     document.getElementById('workflowDrawer').classList.add('open');
   }
 
+  function toggleActionsDropdown(e) {
+    if (e) e.stopPropagation();
+    const menu = document.getElementById('actionsDropdownMenu');
+    if (menu) menu.classList.toggle('open');
+  }
+
+  function closeActionsDropdown() {
+    const menu = document.getElementById('actionsDropdownMenu');
+    if (menu) menu.classList.remove('open');
+  }
+
+  // Close actions dropdown when clicking elsewhere
+  document.addEventListener('click', (e) => {
+    if (!e.target.closest('.actions-dropdown-container')) {
+      closeActionsDropdown();
+    }
+  });
+
   function closeDrawer() {
+    closeActionsDropdown();
     document.getElementById('drawerOverlay').classList.remove('open');
     document.getElementById('workflowDrawer').classList.remove('open');
     selectedEvent = null;
+  }
+
+  function openEditEventModal() {
+    closeActionsDropdown();
+    if (!selectedEvent) return;
+    const src = selectedEvent.source;
+    if (src === 'crm' || src === 'tprm') {
+      alert("Aura CRM / TPRM records are authoritative vault contracts. Please edit them directly within Aura CRM or TPRM.");
+      return;
+    }
+
+    const orgLabel = selectedEvent.counterparty || selectedEvent.organization || (src === 'may' ? 'May Fleet' : 'Cyberdeck Local');
+    document.getElementById('editEventStream').value = `[${src.toUpperCase()}] ${orgLabel}`;
+    document.getElementById('editEventTitle').value = selectedEvent.title || selectedEvent.full_title || '';
+    document.getElementById('editEventDate').value = (selectedEvent.start || '').split('T')[0];
+    document.getElementById('editEventCategory').value = selectedEvent.category || selectedEvent.reminder_type || '';
+    document.getElementById('editEventNotes').value = selectedEvent.notes || '';
+
+    document.getElementById('editModalOverlay').classList.add('open');
+    document.getElementById('editEventModal').classList.add('open');
+  }
+
+  function closeEditEventModal() {
+    document.getElementById('editModalOverlay').classList.remove('open');
+    document.getElementById('editEventModal').classList.remove('open');
+  }
+
+  function saveEditedEvent() {
+    if (!selectedEvent) return;
+    const src = selectedEvent.source;
+    const newTitle = document.getElementById('editEventTitle').value.trim();
+    const newDate = document.getElementById('editEventDate').value;
+    const newCategory = document.getElementById('editEventCategory').value.trim();
+    const newNotes = document.getElementById('editEventNotes').value.trim();
+
+    if (!newTitle) {
+      alert("Please provide an event title.");
+      return;
+    }
+
+    const payload = {
+      source: src,
+      id: selectedEvent.id,
+      data: {
+        title: newTitle,
+        start: newDate,
+        end: newDate,
+        category: newCategory,
+        notes: newNotes
+      }
+    };
+
+    postToBackend('edit_event', payload);
+    closeEditEventModal();
+    closeDrawer();
+    setTimeout(reloadData, 300);
+  }
+
+  function confirmDeleteCurrentEvent() {
+    closeActionsDropdown();
+    if (!selectedEvent || !selectedEvent.id) return;
+    const src = selectedEvent.source;
+    if (src === 'crm' || src === 'tprm') {
+      alert("Aura CRM / TPRM records are authoritative vault contracts. Please delete them directly within Aura CRM or TPRM.");
+      return;
+    }
+
+    const title = selectedEvent.full_title || selectedEvent.title || "this event";
+    if (confirm(`Delete event:\n"${title}"\n\nThis cannot be undone. Proceed?`)) {
+      postToBackend('delete_event', { source: src, id: selectedEvent.id });
+      closeDrawer();
+      setTimeout(reloadData, 300);
+    }
+  }
+
+  function launchSourceApp() {
+    closeActionsDropdown();
+    if (!selectedEvent) return;
+    const src = selectedEvent.source;
+    if (src === 'crm') launchAuraCrm();
+    else if (src === 'tprm') launchAuraTprm();
+    else if (src === 'may') launchMayFleet();
   }
 
   function openAssetFolder() {
@@ -1107,17 +1391,6 @@
         return;
       }
       postToBackend('export_single_ics', { event: selectedEvent });
-    }
-  }
-  function deleteCurrentOpsEvent() {
-    if (selectedEvent && selectedEvent.id) {
-      if (selectedEvent.source === 'alpha' || selectedEvent.source === 'noir') {
-        postToBackend('delete_studio_event', { stream: selectedEvent.source, id: selectedEvent.id });
-      } else {
-        postToBackend('delete_ops_event', { id: selectedEvent.id });
-      }
-      closeDrawer();
-      setTimeout(reloadData, 300);
     }
   }
 

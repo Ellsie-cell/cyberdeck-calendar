@@ -119,6 +119,22 @@ def delete_local_ops_event(event_id: str) -> bool:
         return True
     return False
 
+def update_local_ops_event(event_id: str, updated_data: Dict[str, Any]) -> bool:
+    """Updates an existing Cyberdeck Ops event by ID."""
+    events = load_local_ops_events()
+    found = False
+    for ev in events:
+        if ev.get("id") == event_id:
+            for k in ("title", "start", "end", "notes", "category", "badge"):
+                if k in updated_data and updated_data[k] is not None:
+                    ev[k] = updated_data[k]
+            found = True
+            break
+    if found:
+        save_local_ops_events(events)
+        return True
+    return False
+
 # =============================================================================
 # STUDIO ALPHA & STUDIO NOIR (LOCKBOX CONTENT CALENDARS)
 # =============================================================================
@@ -165,6 +181,22 @@ def delete_studio_event(stream: str, event_id: str) -> bool:
     filtered = [e for e in events if e.get("id") != event_id]
     if len(filtered) != initial_len:
         save_studio_events(stream, filtered)
+        return True
+    return False
+
+def update_studio_event(stream: str, event_id: str, updated_data: Dict[str, Any]) -> bool:
+    """Updates a shoot or production event by ID."""
+    events = load_studio_events(stream)
+    found = False
+    for ev in events:
+        if ev.get("id") == event_id:
+            for k in ("title", "start", "end", "theme", "status", "notes", "category"):
+                if k in updated_data and updated_data[k] is not None:
+                    ev[k] = updated_data[k]
+            found = True
+            break
+    if found:
+        save_studio_events(stream, events)
         return True
     return False
 
@@ -455,6 +487,59 @@ def fetch_may_reminders() -> List[Dict[str, Any]]:
         print(f"[Calendar Bridge] May Fleet Ingestion notice: {e}", file=sys.stderr)
 
     return events
+
+def delete_may_reminder(reminder_id: int) -> bool:
+    """Deletes a reminder from May fleet database."""
+    if not MAY_DB_PATH.exists():
+        return False
+    try:
+        conn = sqlite3.connect(str(MAY_DB_PATH))
+        with conn:
+            c = conn.cursor()
+            c.execute("DELETE FROM reminders WHERE id = ?", (reminder_id,))
+            affected = c.rowcount
+        conn.close()
+        return affected > 0
+    except Exception as e:
+        print(f"[Calendar Bridge] May Delete error: {e}", file=sys.stderr)
+        return False
+
+def update_may_reminder(reminder_id: int, updated_data: Dict[str, Any]) -> bool:
+    """Updates a reminder in May fleet database."""
+    if not MAY_DB_PATH.exists():
+        return False
+    try:
+        conn = sqlite3.connect(str(MAY_DB_PATH))
+        with conn:
+            c = conn.cursor()
+            fields = []
+            values = []
+            if "title" in updated_data and updated_data["title"] is not None:
+                fields.append("title = ?")
+                values.append(updated_data["title"])
+            if "start" in updated_data and updated_data["start"] is not None:
+                # May uses due_date
+                due_val = updated_data["start"].split("T")[0] if "T" in str(updated_data["start"]) else updated_data["start"]
+                fields.append("due_date = ?")
+                values.append(due_val)
+            if "notes" in updated_data and updated_data["notes"] is not None:
+                fields.append("description = ?")
+                values.append(updated_data["notes"])
+            if "category" in updated_data and updated_data["category"] is not None:
+                fields.append("reminder_type = ?")
+                values.append(updated_data["category"])
+            if not fields:
+                conn.close()
+                return False
+            values.append(reminder_id)
+            sql = f"UPDATE reminders SET {', '.join(fields)}, updated_at = CURRENT_TIMESTAMP WHERE id = ?"
+            c.execute(sql, tuple(values))
+            affected = c.rowcount
+        conn.close()
+        return affected > 0
+    except Exception as e:
+        print(f"[Calendar Bridge] May Update error: {e}", file=sys.stderr)
+        return False
 
 def get_all_calendar_events(glance_mode: bool = False) -> Dict[str, Any]:
     """

@@ -251,6 +251,41 @@ class CalendarHUDWindow(Gtk.Window):
             elif action == "delete_ops_event":
                 calendar_bridge.delete_local_ops_event(payload.get("id"))
 
+            elif action == "delete_event":
+                source = payload.get("source")
+                ev_id = payload.get("id")
+                ok = False
+                if source == "ops":
+                    ok = calendar_bridge.delete_local_ops_event(ev_id)
+                elif source in ("alpha", "noir"):
+                    ok = calendar_bridge.delete_studio_event(source, ev_id)
+                elif source == "may":
+                    raw_id = str(ev_id).replace("may-", "")
+                    try:
+                        ok = calendar_bridge.delete_may_reminder(int(raw_id))
+                    except (ValueError, TypeError):
+                        ok = False
+                if ok:
+                    self.notify_user("Event Deleted", f"Deleted event from {source.upper()}.")
+
+            elif action == "edit_event":
+                source = payload.get("source")
+                ev_id = payload.get("id")
+                updated_data = payload.get("data", {})
+                ok = False
+                if source == "ops":
+                    ok = calendar_bridge.update_local_ops_event(ev_id, updated_data)
+                elif source in ("alpha", "noir"):
+                    ok = calendar_bridge.update_studio_event(source, ev_id, updated_data)
+                elif source == "may":
+                    raw_id = str(ev_id).replace("may-", "")
+                    try:
+                        ok = calendar_bridge.update_may_reminder(int(raw_id), updated_data)
+                    except (ValueError, TypeError):
+                        ok = False
+                if ok:
+                    self.notify_user("Event Updated", f"Saved changes to {source.upper()} event.")
+
             elif action == "open_folder":
                 folder_path = payload.get("path")
                 if folder_path and os.path.exists(folder_path):
