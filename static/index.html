@@ -726,6 +726,132 @@
       border-color: var(--neon-cyan);
     }
 
+    /* High Z-Index Overlay for In-App Dialog Windows */
+    .cyber-dialog-overlay {
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(4, 6, 12, 0.78);
+      backdrop-filter: blur(6px);
+      -webkit-backdrop-filter: blur(6px);
+      z-index: 1400;
+      display: none;
+      opacity: 0;
+      transition: opacity 0.2s ease;
+    }
+    .cyber-dialog-overlay.open {
+      display: block;
+      opacity: 1;
+    }
+
+    /* Cyberdeck Floating In-App Dialog Window */
+    .cyber-dialog-window {
+      position: fixed;
+      top: 50%; left: 50%;
+      transform: translate(-50%, -50%) scale(0.96);
+      width: 440px;
+      max-width: 90vw;
+      background: rgba(14, 16, 26, 0.98);
+      border: 1px solid var(--border-glow);
+      border-radius: 8px;
+      box-shadow: 0 10px 40px rgba(0, 0, 0, 0.9), 0 0 25px rgba(125, 207, 255, 0.2);
+      backdrop-filter: blur(16px);
+      padding: 0;
+      display: none;
+      flex-direction: column;
+      z-index: 1500;
+      overflow: hidden;
+      opacity: 0;
+      transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    .cyber-dialog-window.open {
+      display: flex;
+      opacity: 1;
+      transform: translate(-50%, -50%) scale(1);
+    }
+    .cyber-dialog-window.danger {
+      border-color: var(--neon-red);
+      box-shadow: 0 10px 45px rgba(0, 0, 0, 0.95), 0 0 30px rgba(247, 118, 142, 0.35);
+    }
+    .cyber-dialog-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 10px 14px;
+      background: rgba(22, 25, 40, 0.85);
+      border-bottom: 1px solid var(--border-dim);
+    }
+    .cyber-dialog-window.danger .cyber-dialog-header {
+      background: rgba(36, 18, 26, 0.85);
+      border-bottom-color: rgba(247, 118, 142, 0.3);
+    }
+    .cyber-dialog-title {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.8px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      color: var(--neon-cyan);
+    }
+    .cyber-dialog-window.danger .cyber-dialog-title {
+      color: var(--neon-red);
+    }
+    .cyber-dialog-body {
+      padding: 16px 16px 14px 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      font-family: var(--font-mono);
+    }
+    .cyber-dialog-event-card {
+      background: rgba(8, 10, 18, 0.8);
+      border: 1px solid var(--border-dim);
+      border-radius: 6px;
+      padding: 10px 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    .cyber-dialog-event-scope {
+      font-size: 10px;
+      color: var(--text-muted);
+      letter-spacing: 0.5px;
+    }
+    .cyber-dialog-event-title {
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--text-bright);
+      word-break: break-word;
+    }
+    .cyber-dialog-banner {
+      font-size: 11px;
+      padding: 8px 10px;
+      border-radius: 4px;
+      line-height: 1.4;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .cyber-dialog-banner.danger {
+      background: rgba(247, 118, 142, 0.12);
+      border: 1px solid rgba(247, 118, 142, 0.3);
+      color: #ff7b92;
+    }
+    .cyber-dialog-banner.info {
+      background: rgba(125, 207, 255, 0.1);
+      border: 1px solid rgba(125, 207, 255, 0.25);
+      color: var(--neon-cyan);
+    }
+    .cyber-dialog-footer {
+      display: flex;
+      justify-content: flex-end;
+      gap: 8px;
+      padding: 12px 16px;
+      background: rgba(10, 12, 20, 0.6);
+      border-top: 1px solid var(--border-dim);
+    }
+
     /* Cyberdeck Custom Context Menu */
     .cyber-context-menu {
       position: fixed;
@@ -1086,6 +1212,56 @@
         <span>SAVE CHANGES</span>
       </button>
       <button class="action-btn delete" onclick="closeEditEventModal()">[CANCEL]</button>
+    </div>
+  </div>
+
+  <!-- High Z-Index Modal Overlay for Cyberdeck In-App Dialogs -->
+  <div id="cyberDialogOverlay" class="cyber-dialog-overlay" onclick="onCyberOverlayClick()"></div>
+
+  <!-- In-App Cyber Confirmation Dialog Window (Replaces native browser confirm) -->
+  <div id="cyberConfirmWindow" class="cyber-dialog-window danger">
+    <div class="cyber-dialog-header">
+      <div id="confirmHeaderTitle" class="cyber-dialog-title">
+        <svg class="stream-svg-icon" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+        <span id="confirmDialogBadge">[⚠ PURGE PROTOCOL // CYBER CAL]</span>
+      </div>
+      <button class="drawer-close" onclick="closeCyberConfirm()">[ESC ✕]</button>
+    </div>
+    <div class="cyber-dialog-body">
+      <div class="cyber-dialog-event-card">
+        <span id="confirmEventScope" class="cyber-dialog-event-scope">EVENT SCOPE: [ALPHA]</span>
+        <span id="confirmEventTitle" class="cyber-dialog-event-title">"Neon Matrix Visuals & UI Showcase"</span>
+      </div>
+      <div class="cyber-dialog-banner danger">
+        <svg class="stream-svg-icon" viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+        <span id="confirmMessageText">This action is permanent and cannot be undone. Proceed with deletion?</span>
+      </div>
+    </div>
+    <div class="cyber-dialog-footer">
+      <button id="confirmCancelBtn" class="action-btn" style="width: auto; padding: 6px 14px;" onclick="closeCyberConfirm()">[CANCEL]</button>
+      <button id="confirmProceedBtn" class="action-btn delete" style="width: auto; padding: 6px 14px; background: rgba(247, 118, 142, 0.18);" onclick="executeCyberConfirm()">
+        <svg class="stream-svg-icon" viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>
+        <span id="confirmProceedLabel">PERMANENTLY DELETE EVENT</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- In-App Cyber Notice / Alert Dialog Window (Replaces native browser alert) -->
+  <div id="cyberNoticeWindow" class="cyber-dialog-window">
+    <div class="cyber-dialog-header">
+      <div class="cyber-dialog-title">
+        <svg class="stream-svg-icon" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="var(--neon-cyan)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+        <span id="noticeDialogBadge">[SYSTEM NOTICE // CYBER CAL]</span>
+      </div>
+      <button class="drawer-close" onclick="closeCyberNotice()">[ESC ✕]</button>
+    </div>
+    <div class="cyber-dialog-body">
+      <div id="noticeMessageBanner" class="cyber-dialog-banner info">
+        <span id="noticeMessageText">System notice message</span>
+      </div>
+    </div>
+    <div class="cyber-dialog-footer">
+      <button id="noticeAcknowledgeBtn" class="action-btn" style="width: auto; padding: 6px 18px; border-color: var(--neon-cyan); color: var(--neon-cyan);" onclick="closeCyberNotice()">[ACKNOWLEDGE]</button>
     </div>
   </div>
 </div>
@@ -1490,12 +1666,97 @@
     selectedEvent = null;
   }
 
+  let activeConfirmCallback = null;
+
+  function showCyberConfirm({ badge, eventScope, eventTitle, message, proceedLabel, danger = true, onConfirm }) {
+    activeConfirmCallback = onConfirm;
+    const win = document.getElementById('cyberConfirmWindow');
+    const overlay = document.getElementById('cyberDialogOverlay');
+    
+    document.getElementById('confirmDialogBadge').innerText = badge || '[⚠ PURGE PROTOCOL // CYBER CAL]';
+    document.getElementById('confirmEventScope').innerText = `EVENT SCOPE: [${(eventScope || 'CALENDAR').toUpperCase()}]`;
+    document.getElementById('confirmEventTitle').innerText = eventTitle ? `"${eventTitle}"` : 'Selected Event';
+    document.getElementById('confirmMessageText').innerText = message || 'This action is permanent and cannot be undone. Proceed?';
+    document.getElementById('confirmProceedLabel').innerText = proceedLabel || 'PERMANENTLY DELETE EVENT';
+
+    if (danger) {
+      win.classList.add('danger');
+    } else {
+      win.classList.remove('danger');
+    }
+
+    overlay.classList.add('open');
+    win.classList.add('open');
+    
+    // Focus Cancel button by default for safety
+    setTimeout(() => {
+      const cancelBtn = document.getElementById('confirmCancelBtn');
+      if (cancelBtn) cancelBtn.focus();
+    }, 50);
+  }
+
+  function closeCyberConfirm() {
+    const win = document.getElementById('cyberConfirmWindow');
+    const overlay = document.getElementById('cyberDialogOverlay');
+    if (win) win.classList.remove('open');
+    if (overlay) overlay.classList.remove('open');
+    activeConfirmCallback = null;
+  }
+
+  function executeCyberConfirm() {
+    const cb = activeConfirmCallback;
+    closeCyberConfirm();
+    if (typeof cb === 'function') {
+      cb();
+    }
+  }
+
+  function showCyberNotice({ badge, message, isDanger = false }) {
+    const win = document.getElementById('cyberNoticeWindow');
+    const overlay = document.getElementById('cyberDialogOverlay');
+    const banner = document.getElementById('noticeMessageBanner');
+
+    document.getElementById('noticeDialogBadge').innerText = badge || '[SYSTEM NOTICE // CYBER CAL]';
+    document.getElementById('noticeMessageText').innerText = message;
+
+    if (isDanger) {
+      win.classList.add('danger');
+      if (banner) banner.className = 'cyber-dialog-banner danger';
+    } else {
+      win.classList.remove('danger');
+      if (banner) banner.className = 'cyber-dialog-banner info';
+    }
+
+    overlay.classList.add('open');
+    win.classList.add('open');
+
+    setTimeout(() => {
+      const ackBtn = document.getElementById('noticeAcknowledgeBtn');
+      if (ackBtn) ackBtn.focus();
+    }, 50);
+  }
+
+  function closeCyberNotice() {
+    const win = document.getElementById('cyberNoticeWindow');
+    const overlay = document.getElementById('cyberDialogOverlay');
+    if (win) win.classList.remove('open');
+    if (overlay) overlay.classList.remove('open');
+  }
+
+  function onCyberOverlayClick() {
+    closeCyberConfirm();
+    closeCyberNotice();
+  }
+
   function openEditEventModal() {
     closeActionsDropdown();
     if (!selectedEvent) return;
     const src = selectedEvent.source;
     if (src === 'crm' || src === 'tprm') {
-      alert("Aura CRM / TPRM records are authoritative vault contracts. Please edit them directly within Aura CRM or TPRM.");
+      showCyberNotice({
+        badge: '[VAULT INTEGRITY GUARD // AURA]',
+        message: 'Aura CRM & TPRM records are authoritative vault contracts. Please edit them directly within Aura CRM or TPRM.'
+      });
       return;
     }
 
@@ -1524,7 +1785,10 @@
     const newNotes = document.getElementById('editEventNotes').value.trim();
 
     if (!newTitle) {
-      alert("Please provide an event title.");
+      showCyberNotice({
+        badge: '[VALIDATION ERROR // CYBER CAL]',
+        message: 'Please provide an event title before saving.'
+      });
       return;
     }
 
@@ -1551,16 +1815,29 @@
     if (!selectedEvent || !selectedEvent.id) return;
     const src = selectedEvent.source;
     if (src === 'crm' || src === 'tprm') {
-      alert("Aura CRM / TPRM records are authoritative vault contracts. Please delete them directly within Aura CRM or TPRM.");
+      showCyberNotice({
+        badge: '[VAULT INTEGRITY GUARD // AURA]',
+        message: 'Aura CRM & TPRM records are authoritative vault contracts. Please delete them directly within Aura CRM or TPRM.'
+      });
       return;
     }
 
     const title = selectedEvent.full_title || selectedEvent.title || "this event";
-    if (confirm(`Delete event:\n"${title}"\n\nThis cannot be undone. Proceed?`)) {
-      postToBackend('delete_event', { source: src, id: selectedEvent.id });
-      closeDrawer();
-      setTimeout(reloadData, 300);
-    }
+    const scope = (selectedEvent.source || 'Local').toUpperCase();
+
+    showCyberConfirm({
+      badge: '[⚠ PURGE PROTOCOL // CYBER CAL]',
+      eventScope: scope,
+      eventTitle: title,
+      message: 'This event will be permanently deleted from local storage. This action cannot be undone.',
+      proceedLabel: 'DELETE EVENT',
+      danger: true,
+      onConfirm: () => {
+        postToBackend('delete_event', { source: src, id: selectedEvent.id });
+        closeDrawer();
+        setTimeout(reloadData, 300);
+      }
+    });
   }
 
   function launchSourceApp() {
@@ -1593,7 +1870,11 @@
   function exportCurrentEventIcs() {
     if (selectedEvent) {
       if (selectedEvent.source === 'noir') {
-        alert("Security Barrier: Studio Noir is quarantined on-device and blocked from cloud/Proton exports.");
+        showCyberNotice({
+          badge: '[QUARANTINE ENFORCED // STUDIO NOIR]',
+          message: 'Studio Noir is quarantined on-device and blocked from cloud/Proton exports.',
+          isDanger: true
+        });
         return;
       }
       postToBackend('export_single_ics', { event: selectedEvent });
@@ -1619,7 +1900,10 @@
     const notes = document.getElementById('newTaskNotes').value.trim();
 
     if (!title || !date) {
-      alert("Title and Date are required.");
+      showCyberNotice({
+        badge: '[VALIDATION ERROR // CYBER CAL]',
+        message: 'Title and Date are required to schedule an event.'
+      });
       return;
     }
 
@@ -1657,8 +1941,19 @@
   // Escape key closes modal & drawer
   window.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') {
+      const confirmWin = document.getElementById('cyberConfirmWindow');
+      const noticeWin = document.getElementById('cyberNoticeWindow');
+      if (confirmWin && confirmWin.classList.contains('open')) {
+        closeCyberConfirm();
+        return;
+      }
+      if (noticeWin && noticeWin.classList.contains('open')) {
+        closeCyberNotice();
+        return;
+      }
       closeDrawer();
       closeNewTaskModal();
+      closeEditEventModal();
     } else if (e.key === 'F11') {
       e.preventDefault();
       postToBackend('toggle_maximize');
